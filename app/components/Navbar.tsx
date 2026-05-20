@@ -82,19 +82,20 @@ export default function Navbar() {
       setShowModal(true);
     }
 
-    // 🔔 [개편] actor_id 기점 정밀 조인 문법 변경 및 에러 체크 탑재
+    // 🔔 [정밀 수정] 강제 지정한 외래키 통로 이름(fk_noti_actor)으로 안전하게 조인합니다.
     const { data: notis, error } = await supabase
       .from('notifications')
       .select(`
         *, 
-        actor:profiles!actor_id(nickname), 
+        actor:profiles!fk_noti_actor(nickname), 
         posts(title)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error("🚨 알림 데이터 불러오기 실패 원인:", error.message);
+      // 혹시라도 에러가 나면 눈에 보이도록 경고창을 띄웁니다.
+      alert(`알림 불러오기 실패: ${error.message}`);
       return;
     }
 
