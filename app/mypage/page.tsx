@@ -1,90 +1,259 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
-export default function Home() {
+export default function MyPage() {
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 📅 계약 만기일 상태 관리
+  const [contractEndDate, setContractEndDate] = useState<string>(''); 
+  const [dateInput, setDateInput] = useState<string>(''); // 입력 창용
+  const [isEditingDate, setIsEditingDate] = useState(false); // 수정 모드 토글
+  const [dDay, setDDay] = useState<number | null>(null);
+
+  // 데이터 로드 함수
+  const fetchMyData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+
+    if (user) {
+      // 1. 프로필 정보(닉네임, 성별, 만기일) 조회
+      const { data: pf } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(pf);
+
+      if (pf?.contract_end_date) {
+        setContractEndDate(pf.contract_end_date);
+        setDateInput(pf.contract_end_date);
+        
+        // ⏱️ 디데이 계산
+        const targetDate = new Date(pf.contract_end_date);
+        const today = new Date();
+        // 시간 차이를 구하기 위해 날짜 정규화 (시/분/초 제거)
+        targetDate.setHours(0,0,0,0);
+        today.setHours(0,0,0,0);
+        
+        const diffTime = targetDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        setDDay(diffDays);
+      } else {
+        setContractEndDate('');
+        setDDay(null);
+      }
+
+      // 2. 내가 쓴 게시글 목록 조회
+      const { data: posts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('author_id', user.id)
+        .order('created_at', { ascending: false });
+      setMyPosts(posts || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMyData();
+  }, []);
+
+  // 💾 만기일 저장/수정 함수
+  const saveContractDate = async () => {
+    if (!dateInput) return alert("날짜를 선택해주세요!");
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        contract_end_date: dateInput,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      alert(`저장 중 오류가 발생했습니다: ${error.message}`);
+    } else {
+      setIsEditingDate(false);
+      await fetchMyData(); // 데이터 새로고침
+      alert("계약 만기일이 안전하게 저장되었습니다! 💾");
+    }
+  };
+
+  // 🗑️ 내가 쓴 글 마이페이지에서 바로 삭제하기
+  const handleDeletePost = async (postId: string) => {
+    if (confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      if (!error) {
+        setMyPosts(myPosts.filter(post => post.id !== postId));
+        alert("성공적으로 삭제되었습니다.");
+      } else {
+        alert("삭제 중 오류가 발생했습니다.");
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans">
+        <div className="text-lg font-black text-slate-400 animate-pulse">정보를 안전하게 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center font-sans p-6 text-center space-y-4">
+        <span className="text-5xl">🔒</span>
+        <h2 className="text-2xl font-black">로그인이 필요한 페이지입니다.</h2>
+        <Link href="/" className="px-6 py-3 bg-[#007AFF] text-white font-black rounded-xl text-sm shadow-lg shadow-blue-100">메인으로 가기</Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 pt-20">
-      <main>
-        {/* 프리미엄 히어로 섹션 */}
-        <section className="relative pt-32 pb-40 px-8 overflow-hidden">
-          <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-blue-50 rounded-full blur-3xl opacity-50 translate-x-1/2 -translate-y-1/2" />
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
-            <div className="flex-1 space-y-10 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-5 py-2 bg-white rounded-full shadow-sm border border-slate-100">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                </span>
-                <span className="text-xs font-black text-blue-600 tracking-wider uppercase">대한민국 1위 세입자 권리 보호 플랫폼</span>
-              </div>
-              <h1 className="text-6xl md:text-8xl font-[1000] text-slate-900 leading-[1.05] tracking-tight">
-                세입자의<br />
-                <span className="text-[#007AFF] inline-block mt-2">든든한 뿌리.</span>
-              </h1>
-              <p className="text-xl md:text-2xl text-slate-500 font-bold leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                복잡한 부동산 법률과 불합리한 상황 속에서도<br className="hidden md:block" /> 
-                당신의 소중한 보증금และ 권리를 단단하게 지켜드립니다.
-              </p>
-              <div className="flex flex-wrap gap-5 justify-center lg:justify-start">
-                <Link href="/contract" className="px-12 py-6 bg-[#007AFF] text-white rounded-2xl font-black text-lg hover:scale-105 transition-all shadow-2xl shadow-blue-200">계약 전 체크리스트 보기 📋</Link>
-                <Link href="/community" className="px-12 py-6 bg-white text-slate-900 border-2 border-slate-100 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all">커뮤니티 구경하기</Link>
-              </div>
+    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
+      {/* 글로벌 상단바 */}
+      <nav className="w-full bg-white border-b border-slate-100 h-20 flex items-center">
+        <div className="max-w-6xl mx-auto w-full px-6 flex justify-between items-center">
+          <Link href="/" className="text-2xl font-[1000] tracking-tighter text-slate-900">
+            BIG<span className="text-[#007AFF]">ROOT</span> <span className="text-slate-400 font-bold ml-1 text-sm">MyPage</span>
+          </Link>
+          <Link href="/" className="text-sm font-black text-slate-500 hover:text-[#007AFF] transition-colors">메인 홈으로</Link>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* 👤 좌측: 내 프로필 정보 및 계약 만기 관리 대시보드 */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center space-y-4">
+            <div className="w-20 h-20 bg-blue-50 text-[#007AFF] text-3xl font-black rounded-full flex items-center justify-center mx-auto shadow-inner">
+              {profile?.gender === '여성' ? '👩‍💼' : '👨‍💼'}
             </div>
-            <div className="flex-1 relative">
-              <div className="w-[450px] h-[550px] bg-gradient-to-br from-blue-500 to-blue-700 rounded-[4rem] shadow-3xl rotate-3 flex items-center justify-center text-[10rem] relative overflow-hidden group">
-                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                🏠
-                <div className="absolute bottom-10 left-10 right-10 bg-white/20 backdrop-blur-md p-6 rounded-3xl border border-white/30 -rotate-3">
-                    <p className="text-white text-lg font-black italic">{"\"내 집 마련 전까지, 내 권리부터!\""}</p>
-                </div>
-              </div>
+            <div>
+              <h3 className="text-2xl font-black">{profile?.nickname || '닉네임 미설정'}</h3>
+              <p className="text-xs font-bold text-slate-400 mt-1">{user?.email}</p>
+            </div>
+            <div className="inline-block px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[11px] font-black text-slate-500">
+              성별: {profile?.gender || '미설정'}
             </div>
           </div>
-        </section>
 
-        {/* 전문 서비스 그리드 섹션 */}
-        <section className="bg-white py-32 px-8 border-t border-slate-100">
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div className="text-center space-y-4">
-              <h3 className="text-blue-600 font-black tracking-widest text-sm uppercase">Our Services</h3>
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900">전문가가 설계한 세입자 전용 솔루션</h2>
+          {/* ⏳ 나의 계약 만기 관리 섹션 (조건부 렌더링 적용) */}
+          <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl translate-x-10 -translate-y-10" />
+            
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-xs font-black text-blue-400 tracking-wider uppercase">Contract Management</span>
+                <h4 className="text-lg font-black mt-1">나의 계약 만기 관리</h4>
+              </div>
+              <span className="text-2xl">⏳</span>
             </div>
-            <div className="w-full">
-              <Link href="/contract" className="group flex flex-col md:flex-row items-start md:items-center justify-between p-12 bg-blue-50/50 rounded-[3rem] border border-blue-100/60 hover:bg-white hover:border-blue-400 hover:shadow-2xl transition-all duration-500 gap-8">
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-                  <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center text-4xl shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500">🔥</div>
-                  <div className="space-y-2">
-                    <div className="inline-block px-3 py-1 bg-blue-600 text-white rounded-full text-[10px] font-black tracking-widest uppercase">MUST WATCH</div>
-                    <h4 className="text-3xl font-black text-slate-900">계약 전 필수 체크리스트</h4>
-                    <p className="text-slate-500 font-bold leading-relaxed max-w-2xl">보증금을 안전하게 지키기 위해 무조건 확인해야 하는 유형별 핵심 가이드</p>
+
+            {/* 1️⃣ 만기일이 등록되어 있고, 수정 모드가 아닐 때 */}
+            {contractEndDate && !isEditingDate ? (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
+                  <p className="text-xs font-bold text-slate-300">예상 만기일까지</p>
+                  <p className="text-4xl font-[1000] text-blue-400 mt-1 tracking-tight">
+                    {dDay !== null && dDay >= 0 ? `D-${dDay}` : `D+${Math.abs(dDay || 0)} 지남`}
+                  </p>
+                </div>
+
+                <div className="space-y-2 text-sm text-slate-300 font-bold">
+                  <div className="flex justify-between">
+                    <span>확정 만기일</span>
+                    <span className="text-white">{contractEndDate}</span>
                   </div>
                 </div>
-                <div className="text-3xl text-blue-600 font-black group-hover:translate-x-3 transition-transform duration-300 shrink-0 hidden md:block">지금 확인하기 →</div>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <ServiceCard href="/community" icon="🗨️" title="커뮤니티" desc="부동산 고민, 임차인들과 전문가가 함께 답해드립니다." />
-              <ServiceCard href="/rights-guide" icon="📖" title="권리백과" desc="세입자가 꼭 알아야 할 핵심 법규를 쉽게 풀어드립니다." />
-              <ServiceCard href="/rent-increase" icon="📈" title="임대료 진단" desc="우리 집 임대료 인상이 적정한지 데이터로 정확히 분석합니다." />
-              <ServiceCard href="/golden-time" icon="⏳" title="골든타임" desc="절대로 놓쳐선 안 될 임대차 중요 날짜를 정밀하게 추적합니다." />
-            </div>
+
+                <button 
+                  onClick={() => setIsEditingDate(true)}
+                  className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all"
+                >
+                  만기일 변경하기 ⚙️
+                </button>
+              </div>
+            ) : (
+              /* 2️⃣ 만기일이 등록 안 되어 있거나, 수정 모드일 때 */
+              <div className="space-y-4 bg-white/5 p-5 rounded-3xl border border-white/10 animate-in fade-in duration-300">
+                <p className="text-xs font-bold text-slate-300 leading-relaxed">
+                  {contractEndDate ? "변경할 새로운 만기일을 선택해주세요." : "아직 만기일이 등록되지 않았습니다. 만기 날짜를 설정하고 한눈에 관리해 보세요!"}
+                </p>
+                <div className="space-y-3">
+                  <input 
+                    type="date" 
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    className="w-full p-3 bg-slate-800 text-white rounded-xl border border-slate-700 outline-none text-sm font-bold"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={saveContractDate}
+                      className="flex-1 py-3 bg-[#007AFF] text-white font-black text-xs rounded-xl hover:bg-blue-600 transition-colors"
+                    >
+                      {contractEndDate ? "수정 완료" : "만기일 등록"}
+                    </button>
+                    {contractEndDate && (
+                      <button 
+                        onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); }}
+                        className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-600 transition-colors"
+                      >
+                        취소
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </section>
+        </div>
+
+        {/* 📋 우측: 내가 커뮤니티에 쓴 글 모아보기 목록 */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-50">
+              <h3 className="text-lg font-black">내가 쓴 이야기 <span className="text-[#007AFF]">{myPosts.length}</span></h3>
+              <span className="text-xs text-slate-400 font-bold">커뮤니티 활동 내역</span>
+            </div>
+
+            {myPosts.length === 0 ? (
+              <div className="text-center py-24 text-slate-300 font-bold space-y-3">
+                <span className="text-4xl block">📝</span>
+                <p className="text-sm">아직 커뮤니티에 작성한 게시글이 없습니다.</p>
+                <Link href="/community" className="inline-block text-xs text-[#007AFF] font-black underline">첫 글 쓰러 가기</Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myPosts.map((post) => (
+                  <div key={post.id} className="p-5 bg-slate-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all flex flex-col justify-between md:flex-row md:items-center gap-4 group">
+                    <div className="space-y-1 flex-1">
+                      <span className="text-[10px] font-bold text-slate-400">{new Date(post.created_at).toLocaleDateString()}</span>
+                      <h4 className="font-black text-slate-900 text-base line-clamp-1 group-hover:text-[#007AFF] transition-colors">{post.title}</h4>
+                      <p className="text-xs text-slate-500 font-medium line-clamp-1">{post.content}</p>
+                    </div>
+                    <div className="flex items-center gap-3 justify-end">
+                      <Link href="/community" className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-500 text-[11px] font-black text-slate-600 rounded-lg transition-all">
+                        보기
+                      </Link>
+                      <button 
+                        onClick={() => handleDeletePost(post.id)}
+                        className="px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 text-[11px] font-black rounded-lg transition-all"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
       </main>
     </div>
-  );
-}
-
-function ServiceCard({ href, icon, title, desc }: { href: string; icon: string; title: string; desc: string }) {
-  return (
-    <Link href={href} className="group p-8 bg-slate-50 rounded-[2.5rem] hover:border-blue-200 hover:bg-white hover:shadow-2xl transition-all duration-500 flex flex-col justify-between border border-transparent">
-      <div>
-        <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center text-3xl shadow-sm mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform">{icon}</div>
-        <h4 className="text-xl font-black text-slate-900 mb-3">{title}</h4>
-        <p className="text-slate-500 font-bold leading-relaxed text-xs">{desc}</p>
-      </div>
-      <div className="pt-6 flex items-center gap-2 text-blue-600 text-xs font-black opacity-0 group-hover:opacity-100 transition-all">자세히 보기 <span>→</span></div>
-    </Link>
   );
 }
