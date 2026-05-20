@@ -58,13 +58,18 @@ export default function CommunityPage() {
     }
   };
 
+  // 👀 아코디언 오픈 + 조회수 영구 반영 로직 개편
   const handlePostAccordion = async (postId: string, currentViews: number) => {
     if (activePostId === postId) {
       setActivePostId(null);
     } else {
       setActivePostId(postId);
+      
+      // ✅ 수정 핵심: 일반 update 대신 권한 제한이 없는 RPC 함수를 호출하여 DB에 완벽 영구 저장!
+      await supabase.rpc('increment_view_count', { post_id: postId });
+      
+      // 화면에도 즉시 +1 반영해서 시각적 딜레이 제거
       const nextViews = (currentViews || 0) + 1;
-      await supabase.from('posts').update({ view_count: nextViews }).eq('id', postId);
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, view_count: nextViews } : p));
     }
   };
@@ -121,7 +126,6 @@ export default function CommunityPage() {
   const isAllowed = user && profile?.nickname;
 
   return (
-    // Navbar 고정(h-20)으로 인한 겹침 방지를 위해 pt-28 기본 탑재
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6 pt-28 font-sans text-slate-900">
       <div className="w-full max-w-2xl space-y-6">
         
@@ -184,7 +188,7 @@ export default function CommunityPage() {
                       </div>
                     )}
                     
-                    {/* ✅ 대개편: 날짜 아래에 "조회수 X" 텍스트 형태로 동등한 폰트 스케일 세로 매칭 */}
+                    {/* 날짜 및 조회수 세로 정렬 디자인 유지 */}
                     <div className="flex flex-col items-end gap-0.5 text-[10px] font-bold text-slate-300 min-w-[70px]">
                       <span>{new Date(post.created_at).toLocaleDateString()}</span>
                       <span className="text-slate-400 font-semibold">조회수 {post.view_count || 0}</span>
