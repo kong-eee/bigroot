@@ -10,42 +10,94 @@ export default function MyPage() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 📅 계약 만기일 상태 관리
+  // 📅 계약 설정 상태 관리 (주택/상가 타입 추가)
+  const [propertyType, setPropertyType] = useState<'주택' | '상가'>('주택');
+  const [propertyTypeInput, setPropertyTypeInput] = useState<'주택' | '상가'>('주택');
   const [contractEndDate, setContractEndDate] = useState<string>(''); 
-  const [dateInput, setDateInput] = useState<string>(''); // 입력 창용
-  const [isEditingDate, setIsEditingDate] = useState(false); // 수정 모드 토글
-  const [dDay, setDDay] = useState<number | null>(null);
+  const [dateInput, setDateInput] = useState<string>(''); 
+  const [isEditingDate, setIsEditingDate] = useState(false); 
 
-  // 데이터 로드 함수
+  // 💡 실질적 도움을 주기 위한 계산된 날짜 상태들
+  const [windowStart, setWindowStart] = useState<string>('');
+  const [windowEnd, setWindowEnd] = useState<string>('');
+  const [currentStatus, setCurrentStatus] = useState<string>('');
+  const [statusColor, setStatusColor] = useState<string>('');
+  const [tipMessage, setTipMessage] = useState<string>('');
+
   const fetchMyData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
 
     if (user) {
-      // 1. 프로필 정보(닉네임, 성별, 만기일) 조회
       const { data: pf } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       setProfile(pf);
 
       if (pf?.contract_end_date) {
-        setContractEndDate(pf.contract_end_date);
-        setDateInput(pf.contract_end_date);
+        const endDateStr = pf.contract_end_date;
+        const typeStr = (pf.property_type as '주택' | '상가') || '주택';
         
-        // ⏱️ 디데이 계산
-        const targetDate = new Date(pf.contract_end_date);
+        setContractEndDate(endDateStr);
+        setDateInput(endDateStr);
+        setPropertyType(typeStr);
+        setPropertyTypeInput(typeStr);
+        
+        // ⚙️ 주택/상가 법적 기준에 따른 골든타임 기간 계산
+        const end = new Date(endDateStr);
+        const startPeriod = new Date(end);
+        startPeriod.setMonth(startPeriod.getMonth() - 6); // 둘 다 시작은 6달 전
+        
+        const endPeriod = new Date(end);
+        // ⭐ 주택은 2달 전, 상가는 1달 전이 법적 마감일!
+        if (typeStr === '상가') {
+          endPeriod.setMonth(endPeriod.getMonth() - 1);
+        } else {
+          endPeriod.setMonth(endPeriod.getMonth() - 2);
+        }
+
+        setWindowStart(startPeriod.toISOString().split('T')[0]);
+        setWindowEnd(endPeriod.toISOString().split('T')[0]);
+
         const today = new Date();
-        // 시간 차이를 구하기 위해 날짜 정규화 (시/분/초 제거)
-        targetDate.setHours(0,0,0,0);
         today.setHours(0,0,0,0);
-        
-        const diffTime = targetDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        setDDay(diffDays);
+        startPeriod.setHours(0,0,0,0);
+        endPeriod.setHours(0,0,0,0);
+        end.setHours(0,0,0,0);
+
+        // 💡 주택 vs 상가 3가지 상황별 완전히 다른 맞춤형 가이드 세팅
+        if (today < startPeriod) {
+          const diff = Math.ceil((startPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          setCurrentStatus(`☕ 아직은 조용히 계셔도 돼요 (타이밍까지 ${diff}일)`);
+          setStatusColor('text-slate-400 bg-white/5 border-white/10');
+          setTipMessage(
+            typeStr === '상가'
+              ? '💡 아직 건물주에게 이야기할 때가 아닙니다. 장사를 더 이어갈지(갱신), 권리금을 받고 나갈지 내 마음속 방향을 편하게 계산해보는 시간으로 삼으세요!'
+              : '💡 아직 집주인에게 먼저 이야기할 때가 아니에요. 이사를 갈지, 재계약을 할지 내 마음속 방향을 편하게 고민해보는 시간으로 삼으세요!'
+          );
+        } else if (today >= startPeriod && today <= endPeriod) {
+          setCurrentStatus(typeStr === '상가' ? '📢 지금이에요! 건물주에게 재계약/해지 통보하기' : '📢 지금이에요! 집주인에게 이사/갱신 통보하기');
+          setStatusColor('text-blue-400 bg-blue-500/10 border-blue-500/20');
+          setTipMessage(
+            typeStr === '상가'
+              ? '💡 상가 사장님 주목! 더 장사하고 싶다면 법적으로 총 10년간 보장받는 "계약갱신요구권"을 쓰겠다고 당당히 요구하시고, 나갈 예정이라면 지금 확실히 말해야 권리금 회수 기회(만기 6달 전부터 종료 시까지)를 완벽하게 보호받습니다.'
+              : '💡 진짜 중요한 타이밍이에요! 더 살고 싶다면 "계약갱신요구권"을 쓰겠다고 말씀하시고, 나갈 예정이라면 지금 확실히 종료 의사를 전달해야 보증금을 제때 돌려받습니다. (반드시 문자나 카톡 등 증거를 남겨두세요)'
+          );
+        } else if (today > endPeriod && today <= end) {
+          setCurrentStatus('⚠️ 아차! 통보 기한이 지나 자동 연장 중이에요');
+          setStatusColor('text-amber-500 bg-amber-500/10 border-amber-500/20');
+          setTipMessage(
+            typeStr === '상가'
+              ? '💡 기한 내에 서로 말이 없어 상가 건물 계약이 자동 연장(묵시적 갱신)되었습니다. 법적으로 임대차 기간은 [1년]으로 보장되며, 사장님이 장사하다가 나가고 싶을 때 언제든 해지 통보를 하면 딱 3개월 뒤에 건물주는 보증금을 돌려줘야 합니다!'
+              : '💡 기한 내에 서로 아무 말도 없어 계약이 기존 조건 그대로 자동 연장(묵시적 갱신)되었습니다. 만약 지금이라도 나가길 희망하신다면, 집주인에게 이사 통보를 한 날로부터 딱 3개월 뒤에 법적으로 당당하게 보증금을 돌려받고 나가실 수 있습니다!'
+          );
+        } else {
+          setCurrentStatus('계약 기간이 만료되었습니다.');
+          setStatusColor('text-slate-500 bg-white/5 border-white/10');
+          setTipMessage('💡 현재 지정하신 계약 만기일이 지났습니다. 새로운 시작을 빅루트가 응원합니다!');
+        }
       } else {
         setContractEndDate('');
-        setDDay(null);
       }
 
-      // 2. 내가 쓴 게시글 목록 조회
       const { data: posts } = await supabase
         .from('posts')
         .select('*')
@@ -60,61 +112,29 @@ export default function MyPage() {
     fetchMyData();
   }, []);
 
-  // 💾 만기일 저장/수정 함수
   const saveContractDate = async () => {
     if (!dateInput) return alert("날짜를 선택해주세요!");
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        contract_end_date: dateInput,
-        updated_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      alert(`저장 중 오류가 발생했습니다: ${error.message}`);
-    } else {
-      setIsEditingDate(false);
-      await fetchMyData(); // 데이터 새로고침
-      alert("계약 만기일이 안전하게 저장되었습니다! 💾");
-    }
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      contract_end_date: dateInput,
+      property_type: propertyTypeInput, // 💾 주택/상가 타입도 함께 저장
+      updated_at: new Date().toISOString(),
+    });
+    if (!error) { setIsEditingDate(false); await fetchMyData(); alert("만기일 및 계약 유형이 저장되었습니다! 💾"); }
   };
 
-  // 🗑️ 내가 쓴 글 마이페이지에서 바로 삭제하기
   const handleDeletePost = async (postId: string) => {
     if (confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
-      const { error } = await supabase.from('posts').delete().eq('id', postId);
-      if (!error) {
-        setMyPosts(myPosts.filter(post => post.id !== postId));
-        alert("성공적으로 삭제되었습니다.");
-      } else {
-        alert("삭제 중 오류가 발생했습니다.");
-      }
+      await supabase.from('posts').delete().eq('id', postId);
+      setMyPosts(myPosts.filter(post => post.id !== postId));
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans">
-        <div className="text-lg font-black text-slate-400 animate-pulse">정보를 안전하게 불러오는 중...</div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center font-sans p-6 text-center space-y-4">
-        <span className="text-5xl">🔒</span>
-        <h2 className="text-2xl font-black">로그인이 필요한 페이지입니다.</h2>
-        <Link href="/" className="px-6 py-3 bg-[#007AFF] text-white font-black rounded-xl text-sm shadow-lg shadow-blue-100">메인으로 가기</Link>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans"><div className="text-lg font-black text-slate-400 animate-pulse">불러오는 중...</div></div>;
+  if (!user) return <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center font-sans p-6 text-center space-y-4"><span className="text-5xl">🔒</span><h2 className="text-2xl font-black">로그인이 필요합니다.</h2><Link href="/" className="px-6 py-3 bg-[#007AFF] text-white font-black rounded-xl text-sm">홈으로</Link></div>;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
-      {/* 글로벌 상단바 */}
       <nav className="w-full bg-white border-b border-slate-100 h-20 flex items-center">
         <div className="max-w-6xl mx-auto w-full px-6 flex justify-between items-center">
           <Link href="/" className="text-2xl font-[1000] tracking-tighter text-slate-900">
@@ -126,7 +146,7 @@ export default function MyPage() {
 
       <main className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* 👤 좌측: 내 프로필 정보 및 계약 만기 관리 대시보드 */}
+        {/* 프로필 카드 */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center space-y-4">
             <div className="w-20 h-20 bg-blue-50 text-[#007AFF] text-3xl font-black rounded-full flex items-center justify-center mx-auto shadow-inner">
@@ -141,78 +161,82 @@ export default function MyPage() {
             </div>
           </div>
 
-          {/* ⏳ 나의 계약 만기 관리 섹션 (조건부 렌더링 적용) */}
+          {/* ⏳ 내 계약 골든타임 섹션 */}
           <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl space-y-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl translate-x-10 -translate-y-10" />
             
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-xs font-black text-blue-400 tracking-wider uppercase">Contract Management</span>
-                <h4 className="text-lg font-black mt-1">나의 계약 만기 관리</h4>
+                <span className="text-xs font-black text-blue-400 tracking-wider uppercase">Contract Timing</span>
+                <h4 className="text-lg font-black mt-1">내 계약 골든타임</h4> 
               </div>
-              <span className="text-2xl">⏳</span>
+              {/* 주택/상가 뱃지 노출 */}
+              {contractEndDate && !isEditingDate && (
+                <span className="px-3 py-1 bg-blue-600 text-white font-black text-[10px] rounded-full shadow-sm">
+                  {propertyType} 임대차
+                </span>
+              )}
             </div>
 
-            {/* 1️⃣ 만기일이 등록되어 있고, 수정 모드가 아닐 때 */}
             {contractEndDate && !isEditingDate ? (
               <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-white/10 rounded-2xl p-5 text-center border border-white/10">
-                  <p className="text-xs font-bold text-slate-300">예상 만기일까지</p>
-                  <p className="text-4xl font-[1000] text-blue-400 mt-1 tracking-tight">
-                    {dDay !== null && dDay >= 0 ? `D-${dDay}` : `D+${Math.abs(dDay || 0)} 지남`}
-                  </p>
+                <div className={`p-4 rounded-2xl text-center border font-black text-xs ${statusColor}`}>
+                  {currentStatus}
                 </div>
 
-                <div className="space-y-2 text-sm text-slate-300 font-bold">
-                  <div className="flex justify-between">
-                    <span>확정 만기일</span>
-                    <span className="text-white">{contractEndDate}</span>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
+                  <div>
+                    <p className="text-[11px] font-bold text-slate-400">
+                      {propertyType === '상가' ? '건물주에게 통보해야 하는 기간 (만기 6~1달 전)' : '집주인에게 통보해야 하는 기간 (만기 6~2달 전)'}
+                    </p>
+                    <p className="text-md font-black text-blue-400 mt-1">{windowStart} ~ {windowEnd}</p>
+                  </div>
+                  <div className="border-t border-white/5 pt-3">
+                    <p className="text-[11px] font-bold text-slate-400">확정 만기일</p>
+                    <p className="text-sm font-bold text-white mt-0.5">{contractEndDate}</p>
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => setIsEditingDate(true)}
-                  className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all"
-                >
-                  만기일 변경하기 ⚙️
+                <p className="text-[11px] text-slate-300 font-medium leading-relaxed bg-white/5 p-4 rounded-xl">
+                  {tipMessage}
+                </p>
+
+                <button onClick={() => setIsEditingDate(true)} className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all">
+                  설정 변경하기 ⚙️
                 </button>
               </div>
             ) : (
-              /* 2️⃣ 만기일이 등록 안 되어 있거나, 수정 모드일 때 */
-              <div className="space-y-4 bg-white/5 p-5 rounded-3xl border border-white/10 animate-in fade-in duration-300">
-                <p className="text-xs font-bold text-slate-300 leading-relaxed">
-                  {contractEndDate ? "변경할 새로운 만기일을 선택해주세요." : "아직 만기일이 등록되지 않았습니다. 만기 날짜를 설정하고 한눈에 관리해 보세요!"}
-                </p>
-                <div className="space-y-3">
-                  <input 
-                    type="date" 
-                    value={dateInput}
-                    onChange={(e) => setDateInput(e.target.value)}
-                    className="w-full p-3 bg-slate-800 text-white rounded-xl border border-slate-700 outline-none text-sm font-bold"
-                  />
-                  <div className="flex gap-2">
+              /* ✍️ 입력 및 수정 모드 UI (주택/상가 토글 스위치 추가) */
+              <div className="space-y-5 bg-white/5 p-5 rounded-3xl border border-white/10">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">1. 임대차 종류 선택</label>
+                  <div className="grid grid-cols-2 gap-2">
                     <button 
-                      onClick={saveContractDate}
-                      className="flex-1 py-3 bg-[#007AFF] text-white font-black text-xs rounded-xl hover:bg-blue-600 transition-colors"
-                    >
-                      {contractEndDate ? "수정 완료" : "만기일 등록"}
-                    </button>
-                    {contractEndDate && (
-                      <button 
-                        onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); }}
-                        className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-600 transition-colors"
-                      >
-                        취소
-                      </button>
-                    )}
+                      onClick={() => setPropertyTypeInput('주택')} 
+                      className={`py-2.5 rounded-xl font-black text-xs border transition-all ${propertyTypeInput === '주택' ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
+                    >🏠 주택(전월세)</button>
+                    <button 
+                      onClick={() => setPropertyTypeInput('상가')} 
+                      className={`py-2.5 rounded-xl font-black text-xs border transition-all ${propertyTypeInput === '상가' ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
+                    >🛍️ 상가(매장/사무실)</button>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">2. 계약 만기일 선택</label>
+                  <input type="date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} className="w-full p-3 bg-slate-800 text-white rounded-xl border border-slate-700 outline-none text-sm font-bold" />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={saveContractDate} className="flex-1 py-3 bg-[#007AFF] text-white font-black text-xs rounded-xl hover:bg-blue-600">설정 저장</button>
+                  {contractEndDate && <button onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); setPropertyTypeInput(propertyType); }} className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">취소</button>}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* 📋 우측: 내가 커뮤니티에 쓴 글 모아보기 목록 */}
+        {/* 내가 쓴 글 목록 */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-50">
@@ -236,15 +260,8 @@ export default function MyPage() {
                       <p className="text-xs text-slate-500 font-medium line-clamp-1">{post.content}</p>
                     </div>
                     <div className="flex items-center gap-3 justify-end">
-                      <Link href="/community" className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-500 text-[11px] font-black text-slate-600 rounded-lg transition-all">
-                        보기
-                      </Link>
-                      <button 
-                        onClick={() => handleDeletePost(post.id)}
-                        className="px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 text-[11px] font-black rounded-lg transition-all"
-                      >
-                        삭제
-                      </button>
+                      <Link href="/community" className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-500 text-[11px] font-black text-slate-600 rounded-lg transition-all">보기</Link>
+                      <button onClick={() => handleDeletePost(post.id)} className="px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 text-[11px] font-black rounded-lg">삭제</button>
                     </div>
                   </div>
                 ))}
