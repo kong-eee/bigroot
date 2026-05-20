@@ -17,7 +17,7 @@ export default function Navbar() {
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
 
   useEffect(() => {
-    // 🚨 카카오톡 인앱 브라우저 강제 탈출 스크립트 전역 보호
+    // 🚨 카카오톡 인앱 브라우저 강제 탈출 스크립트
     if (typeof window !== 'undefined') {
       const userAgent = navigator.userAgent.toLowerCase();
       if (userAgent.includes('kakaotalk')) {
@@ -55,6 +55,7 @@ export default function Navbar() {
       setTempNickname(dbNickname);
       setGender(profile.gender as '남성' | '여성' || null);
     }
+    // 닉네임이나 성별 둘 중 하나라도 없으면 온보딩 모달 강제 팝업
     if (!profile?.nickname || !profile?.gender) {
       setShowModal(true);
     }
@@ -73,16 +74,19 @@ export default function Navbar() {
   };
 
   const saveProfile = async () => {
-    if (!tempNickname.trim() || !gender) return alert("정보를 모두 입력해주세요.");
+    if (!tempNickname.trim()) return alert("닉네임을 입력해주세요!");
+    if (!gender) return alert("성별을 선택해주세요!");
+    
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, nickname: tempNickname, gender: gender, updated_at: new Date().toISOString(),
     });
 
     if (error) {
-      if (error.code === '23505') alert("이미 사용 중인 닉네임입니다.");
+      if (error.code === '23505') alert("이미 사용 중인 닉네임입니다. 😭");
       else alert(`오류: ${error.message}`);
     } else {
       setNickname(tempNickname); setShowModal(false); fetchProfileAndNoti(user.id);
+      alert(`${tempNickname}님, 환영합니다! 🌱`);
     }
   };
 
@@ -100,23 +104,60 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 🎁 전역 온보딩 모달 */}
+      {/* 🎁 전역 온보딩 모달 (시각적 피드백 수반 디자인 개편) */}
       {showModal && user && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-10 border border-white/20 relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-slate-100 relative text-slate-900">
+            
             <div className="text-center space-y-3">
-              <div className="text-3xl">🌱</div>
-              <h2 className="text-3xl font-black tracking-tight">반가워요!</h2>
-              <p className="text-slate-500 font-medium text-sm">정보를 입력하고 빅루트를 시작해 보세요.</p>
+              <div className="text-4xl">🌱</div>
+              {/* 텍스트 컬러 text-slate-900 명시하여 투명화 방지 */}
+              <h2 className="text-3xl font-black tracking-tight text-slate-900">반가워요!</h2>
+              <p className="text-slate-500 font-bold text-sm leading-relaxed">정보를 입력하고 빅루트를 시작해 보세요.</p>
             </div>
-            <div className="space-y-6">
-              <input type="text" placeholder="닉네임 입력" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-base" />
+
+            <div className="space-y-5">
+              {/* 닉네임 인풋창 테두리선 및 폰트 고대비 고정 */}
+              <div className="space-y-1.5">
+                <input 
+                  type="text" 
+                  placeholder="사용할 닉네임을 입력하세요" 
+                  value={tempNickname} 
+                  onChange={(e) => setTempNickname(e.target.value)} 
+                  className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-black text-slate-900 placeholder:text-slate-400 text-base focus:bg-white focus:border-blue-500 transition-all" 
+                />
+              </div>
+
+              {/* 성별 버튼 명암 고대비 분리 처리 */}
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black border-2 transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-400 border-slate-150'}`}>남성</button>
-                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black border-2 transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-400 border-slate-150'}`}>여성</button>
+                <button 
+                  onClick={() => setGender('남성')} 
+                  className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                >
+                  남성
+                </button>
+                <button 
+                  onClick={() => setGender('여성')} 
+                  className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                >
+                  여성
+                </button>
               </div>
             </div>
-            <button onClick={saveProfile} className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg">설정 완료하기</button>
+
+            {/* 하단 버튼 배치 구역 ([나중에 할게요] 탈출 버튼 전격 부활) */}
+            <div className="space-y-3 pt-2">
+              <button onClick={saveProfile} className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 hover:bg-blue-600 active:scale-95 transition-all">
+                설정 완료하기
+              </button>
+              <button 
+                onClick={() => { setTempNickname(nickname); setShowModal(false); }} 
+                className="w-full text-center text-sm font-black text-slate-400 hover:text-slate-600 transition-colors py-1 block"
+              >
+                나중에 할게요
+              </button>
+            </div>
+
           </div>
         </div>
       )}
@@ -139,7 +180,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* 🔔 글로벌 알림 아이콘 벨 */}
+            {/* 🔔 알림 아이콘 벨 센터 */}
             {user && (
               <div className="relative">
                 <button onClick={() => { setShowNotiDropdown(!showNotiDropdown); if(!showNotiDropdown) markAllAsRead(); }} className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative">
@@ -175,7 +216,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* 👤 로그인 / 회원 정보 락커 */}
+            {/* 👤 유저 정보 및 로그아웃 */}
             {user ? (
               <div className="flex items-center gap-4">
                 {nickname && (
