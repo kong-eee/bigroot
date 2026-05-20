@@ -3,7 +3,7 @@ import "./globals.css";
 import Navbar from "./components/Navbar"; // 🚀 공통 바 불러오기
 
 export const metadata: Metadata = {
-  title: "빅루트 (BIGROOT) - 세입자의 든든한 뿌리",
+  title: "빅루트 - 세입자의 든든한 뿌리",
   description: "보증금과 권리를 단단하게 지켜드립니다.",
 };
 
