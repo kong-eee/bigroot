@@ -42,7 +42,7 @@ export default function CommunityPage() {
     if (error) return console.error("데이터 로드 실패:", error.message);
 
     if (data) {
-      let sortedData = data.map(post => ({
+      let sortedData = data.map((post: any) => ({
         ...post,
         like_count: post.post_likes?.length || 0,
         is_liked: post.post_likes?.some((l: any) => l.user_id === user?.id),
@@ -50,27 +50,25 @@ export default function CommunityPage() {
       }));
 
       if (sortBy === 'latest') {
-        sortedData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        sortedData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       } else {
-        sortedData.sort((a, b) => b.like_count - a.like_count);
+        sortedData.sort((a: any, b: any) => b.like_count - a.like_count);
       }
       setPosts(sortedData);
     }
   };
 
-  // 👀 아코디언 오픈 + 조회수 영구 반영 로직 개편
   const handlePostAccordion = async (postId: string, currentViews: number) => {
     if (activePostId === postId) {
       setActivePostId(null);
     } else {
       setActivePostId(postId);
       
-      // ✅ 수정 핵심: 일반 update 대신 권한 제한이 없는 RPC 함수를 호출하여 DB에 완벽 영구 저장!
-      await supabase.rpc('increment_view_count', { post_id: postId });
+      const { error } = await supabase.rpc('increment_view_count', { post_id: postId });
+      if (error) console.error("조회수 증가 실패:", error.message);
       
-      // 화면에도 즉시 +1 반영해서 시각적 딜레이 제거
       const nextViews = (currentViews || 0) + 1;
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, view_count: nextViews } : p));
+      setPosts(prev => prev.map((p: any) => p.id === postId ? { ...p, view_count: nextViews } : p));
     }
   };
 
@@ -79,7 +77,7 @@ export default function CommunityPage() {
     if (!newPostTitle.trim() || !newPostContent.trim()) return alert("제목과 내용을 입력해주세요.");
 
     const { error } = await supabase.from('posts').insert({
-      author_id: user.id, title: newPostTitle, content: newPostContent, category: newPostCategory
+      author_id: user.id, user_id: user.id, title: newPostTitle, content: newPostContent, category: newPostCategory
     });
     
     if (error) alert(`등록 실패: ${error.message}`);
@@ -89,12 +87,23 @@ export default function CommunityPage() {
   const toggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
     if (!user) return alert("로그인이 필요합니다.");
+    
+    const targetWriterId = post.author_id || post.user_id;
+    
     if (post.is_liked) {
       await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
     } else {
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
-      if (post.author_id !== user.id) {
-        await supabase.from('notifications').insert({ user_id: post.author_id, actor_id: user.id, post_id: post.id, type: 'like' });
+      
+      const { error: notiError } = await supabase.from('notifications').insert({
+        user_id: targetWriterId,
+        actor_id: user.id,
+        post_id: post.id,
+        type: 'like'
+      });
+      
+      if (notiError) {
+        alert(`🚨 좋아요 알림 DB 저장 실패: ${notiError.message}`);
       }
     }
     fetchPosts();
@@ -105,12 +114,25 @@ export default function CommunityPage() {
     if (!commentContent.trim()) return alert("댓글 내용을 입력해주세요.");
 
     const { error } = await supabase.from('comments').insert({ post_id: post.id, author_id: user.id, content: commentContent });
-    if (error) alert(`답글 등록 실패: ${error.message}`);
-    else {
-      if (post.author_id !== user.id) {
-        await supabase.from('notifications').insert({ user_id: post.author_id, actor_id: user.id, post_id: post.id, type: 'comment' });
+    if (error) {
+      alert(`답글 등록 실패: ${error.message}`);
+    } else {
+      const targetWriterId = post.author_id || post.user_id;
+
+      // 💡 해결완료: 모든 주석을 자바스크립트 규격(//)으로 안전하게 교체했습니다.
+      const { error: notiError } = await supabase.from('notifications').insert({
+        user_id: targetWriterId, // 알림을 받을 사람 (글쓴이)
+        actor_id: user.id,       // 액션을 한 사람 (댓글 단 사람)
+        post_id: post.id,
+        type: 'comment'
+      });
+
+      if (notiError) {
+        alert(`🚨 알림 DB 저장 실패 이유: ${notiError.message}`);
       }
-      setCommentContent(''); fetchPosts();
+      
+      setCommentContent('');
+      fetchPosts();
     }
   };
 
@@ -122,14 +144,13 @@ export default function CommunityPage() {
     if (status === 200 || status === 204) { alert("삭제되었습니다."); fetchPosts(); }
   };
 
-  const filteredPosts = posts.filter(post => filterCategory === 'all' ? true : post.category === filterCategory);
+  const filteredPosts = posts.filter((post: any) => filterCategory === 'all' ? true : post.category === filterCategory);
   const isAllowed = user && profile?.nickname;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6 pt-28 font-sans text-slate-900">
       <div className="w-full max-w-2xl space-y-6">
         
-        {/* 타이틀 및 정렬 버튼 */}
         <div className="flex justify-between items-end w-full pb-2">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">커뮤니티 광장</h2>
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -138,14 +159,12 @@ export default function CommunityPage() {
           </div>
         </div>
 
-        {/* 주택/상가 토글 탭 */}
         <div className="flex bg-white border border-slate-200/80 rounded-2xl p-1.5 shadow-sm gap-1 w-full">
           <button onClick={() => { setFilterCategory('all'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🌏 전체보기</button>
           <button onClick={() => { setFilterCategory('주택'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === '주택' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🏠 주택 게시판</button>
           <button onClick={() => { setFilterCategory('상가'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === '상가' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🛍️ 상가 게시판</button>
         </div>
 
-        {/* 글쓰기 구역 */}
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 relative overflow-hidden">
           {!isAllowed && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
@@ -162,12 +181,11 @@ export default function CommunityPage() {
           <button onClick={handleCreatePost} className="w-full py-4 bg-[#007AFF] text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all">게시물 올리기</button>
         </div>
 
-        {/* 게시글 목록 */}
         <div className="space-y-3">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-[2rem] border border-slate-100 text-slate-300 font-bold text-sm">등록된 게시글이 없습니다. 📝</div>
           ) : (
-            filteredPosts.map((post) => (
+            filteredPosts.map((post: any) => (
               <div 
                 key={post.id} 
                 onClick={() => handlePostAccordion(post.id, post.view_count)}
@@ -176,7 +194,6 @@ export default function CommunityPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h4 className="text-base font-black text-slate-900 leading-tight tracking-tight flex-1">{post.title}</h4>
 
-                  {/* 우측 메타 정보 레이아웃 */}
                   <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black border ${post.category === '상가' ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-blue-50 text-blue-500 border-blue-100'}`}>{post.category === '상가' ? '🛍️ 상가' : '🏠 주택'}</span>
                     <span className="text-[10px] font-black text-slate-700 bg-slate-50 px-2.5 py-1 rounded-full">{post.profiles?.nickname}</span>
@@ -188,7 +205,6 @@ export default function CommunityPage() {
                       </div>
                     )}
                     
-                    {/* 날짜 및 조회수 세로 정렬 디자인 유지 */}
                     <div className="flex flex-col items-end gap-0.5 text-[10px] font-bold text-slate-300 min-w-[70px]">
                       <span>{new Date(post.created_at).toLocaleDateString()}</span>
                       <span className="text-slate-400 font-semibold">조회수 {post.view_count || 0}</span>
@@ -200,7 +216,6 @@ export default function CommunityPage() {
                   </div>
                 </div>
 
-                {/* 펼쳐지는 상세 본문 */}
                 {activePostId === post.id && (
                   <div onClick={(e) => e.stopPropagation()} className="mt-5 pt-5 border-t border-slate-100 space-y-5 cursor-default animate-in fade-in slide-in-from-top-2 duration-200">
                     <p className="text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">{post.content}</p>
