@@ -16,7 +16,6 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
 
-  // 1. 유저 인증 관련 관찰자 효과
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const userAgent = navigator.userAgent.toLowerCase();
@@ -46,29 +45,26 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. 🔥 [핵심 추가] 내 계정에 알림이 오는지 24시간 감시하는 실시간(Realtime) 리스너
+  // 실시간 알림 감시 카메라
   useEffect(() => {
     if (!user) return;
 
-    // 수파베이스의 특정 테이블(notifications)에 내 ID(user_id)로 데이터가 꽂히는지 실시간 감시
     const channel = supabase
       .channel(`realtime-notifications-${user.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT', // 새로운 알림이 생겼을 때만
+          event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user.id}` // 그중에서도 "나에게 온 알림"만 필터링
+          filter: `user_id=eq.${user.id}`
         },
         () => {
-          // 실시간 신호가 오면 즉시 알림 목록과 숫자를 새로고침 없이 리로드합니다!
           fetchProfileAndNoti(user.id);
         }
       )
       .subscribe();
 
-    // 페이지를 떠나거나 로그아웃하면 감시카메라를 안전하게 끕니다.
     return () => {
       supabase.removeChannel(channel);
     };
@@ -86,12 +82,21 @@ export default function Navbar() {
       setShowModal(true);
     }
 
-    // 🔔 알림 목록 불러오기
-    const { data: notis } = await supabase
+    // 🔔 [개편] actor_id 기점 정밀 조인 문법 변경 및 에러 체크 탑재
+    const { data: notis, error } = await supabase
       .from('notifications')
-      .select(`*, actor:profiles!notifications_actor_id_fkey(nickname), posts(title)`)
+      .select(`
+        *, 
+        actor:profiles!actor_id(nickname), 
+        posts(title)
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("🚨 알림 데이터 불러오기 실패 원인:", error.message);
+      return;
+    }
 
     if (notis) {
       setNotifications(notis);
@@ -130,7 +135,7 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 🎁 전역 온보딩 모달 */}
+      {/* 온보딩 모달 */}
       {showModal && user && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-slate-100 relative text-slate-900">
@@ -142,8 +147,8 @@ export default function Navbar() {
             <div className="space-y-5">
               <input type="text" placeholder="사용할 닉네임을 입력하세요" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-black text-slate-900 placeholder:text-slate-400 text-base focus:bg-white focus:border-blue-500 transition-all" />
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200'}`}>남성</button>
-                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200'}`}>여성</button>
+                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200'}`}>남성</button>
+                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200'}`}>여성</button>
               </div>
             </div>
             <div className="space-y-3 pt-2">
@@ -154,7 +159,7 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* 🌐 글로벌 공통 상단 네비게이션 바 */}
+      {/* 글로벌 공통 상단 네비게이션 바 */}
       <nav className="fixed top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-16">
@@ -172,7 +177,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* 🔔 로그인 및 닉네임이 있는 사람에게만 실시간 종 노출 */}
+            {/* 로그인 및 닉네임이 있는 사람에게만 종 노출 */}
             {user && nickname && (
               <div className="relative">
                 <button onClick={() => { setShowNotiDropdown(!showNotiDropdown); if(!showNotiDropdown) markAllAsRead(); }} className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative">
@@ -188,7 +193,7 @@ export default function Navbar() {
                     <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                       <span className="font-black text-xs text-slate-800">최신 알림 센터</span>
                     </div>
-                    <div className="max-h-64 overflow-y-auto text-xs">
+                    <div className="max-h-64 overflow-y-auto text-xs text-slate-900">
                       {notifications.length === 0 ? (
                         <p className="text-slate-400 text-center py-8 font-medium">알림이 없습니다. 🌱</p>
                       ) : (
@@ -208,7 +213,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* 👤 유저 정보 및 로그아웃 */}
+            {/* 유저 정보 및 로그아웃 */}
             {user ? (
               <div className="flex items-center gap-4">
                 {nickname ? (
