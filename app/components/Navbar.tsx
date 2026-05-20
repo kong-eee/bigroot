@@ -16,8 +16,8 @@ export default function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
 
+  // 1. 유저 인증 관련 관찰자 효과
   useEffect(() => {
-    // 🚨 카카오톡 인앱 브라우저 강제 탈출 스크립트
     if (typeof window !== 'undefined') {
       const userAgent = navigator.userAgent.toLowerCase();
       if (userAgent.includes('kakaotalk')) {
@@ -46,8 +46,35 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 2. 🔥 [핵심 추가] 내 계정에 알림이 오는지 24시간 감시하는 실시간(Realtime) 리스너
+  useEffect(() => {
+    if (!user) return;
+
+    // 수파베이스의 특정 테이블(notifications)에 내 ID(user_id)로 데이터가 꽂히는지 실시간 감시
+    const channel = supabase
+      .channel(`realtime-notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT', // 새로운 알림이 생겼을 때만
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}` // 그중에서도 "나에게 온 알림"만 필터링
+        },
+        () => {
+          // 실시간 신호가 오면 즉시 알림 목록과 숫자를 새로고침 없이 리로드합니다!
+          fetchProfileAndNoti(user.id);
+        }
+      )
+      .subscribe();
+
+    // 페이지를 떠나거나 로그아웃하면 감시카메라를 안전하게 끕니다.
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchProfileAndNoti = async (userId: string) => {
-    // 👤 프로필 로드
     const { data: profile } = await supabase.from('profiles').select('nickname, gender').eq('id', userId).single();
     if (profile) {
       const dbNickname = profile.nickname || '';
@@ -55,12 +82,11 @@ export default function Navbar() {
       setTempNickname(dbNickname);
       setGender(profile.gender as '남성' | '여성' || null);
     }
-    // 닉네임이나 성별 둘 중 하나라도 없으면 온보딩 모달 강제 팝업
     if (!profile?.nickname || !profile?.gender) {
       setShowModal(true);
     }
 
-    // 🔔 알림 목록 로드
+    // 🔔 알림 목록 불러오기
     const { data: notis } = await supabase
       .from('notifications')
       .select(`*, actor:profiles!notifications_actor_id_fkey(nickname), posts(title)`)
@@ -104,60 +130,26 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 🎁 전역 온보딩 모달 (시각적 피드백 수반 디자인 개편) */}
+      {/* 🎁 전역 온보딩 모달 */}
       {showModal && user && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-slate-100 relative text-slate-900">
-            
             <div className="text-center space-y-3">
               <div className="text-4xl">🌱</div>
-              {/* 텍스트 컬러 text-slate-900 명시하여 투명화 방지 */}
               <h2 className="text-3xl font-black tracking-tight text-slate-900">반가워요!</h2>
               <p className="text-slate-500 font-bold text-sm leading-relaxed">정보를 입력하고 빅루트를 시작해 보세요.</p>
             </div>
-
             <div className="space-y-5">
-              {/* 닉네임 인풋창 테두리선 및 폰트 고대비 고정 */}
-              <div className="space-y-1.5">
-                <input 
-                  type="text" 
-                  placeholder="사용할 닉네임을 입력하세요" 
-                  value={tempNickname} 
-                  onChange={(e) => setTempNickname(e.target.value)} 
-                  className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-black text-slate-900 placeholder:text-slate-400 text-base focus:bg-white focus:border-blue-500 transition-all" 
-                />
-              </div>
-
-              {/* 성별 버튼 명암 고대비 분리 처리 */}
+              <input type="text" placeholder="사용할 닉네임을 입력하세요" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-black text-slate-900 placeholder:text-slate-400 text-base focus:bg-white focus:border-blue-500 transition-all" />
               <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => setGender('남성')} 
-                  className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
-                >
-                  남성
-                </button>
-                <button 
-                  onClick={() => setGender('여성')} 
-                  className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
-                >
-                  여성
-                </button>
+                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200'}`}>남성</button>
+                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white text-slate-600 border-slate-200'}`}>여성</button>
               </div>
             </div>
-
-            {/* 하단 버튼 배치 구역 ([나중에 할게요] 탈출 버튼 전격 부활) */}
             <div className="space-y-3 pt-2">
-              <button onClick={saveProfile} className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 hover:bg-blue-600 active:scale-95 transition-all">
-                설정 완료하기
-              </button>
-              <button 
-                onClick={() => { setTempNickname(nickname); setShowModal(false); }} 
-                className="w-full text-center text-sm font-black text-slate-400 hover:text-slate-600 transition-colors py-1 block"
-              >
-                나중에 할게요
-              </button>
+              <button onClick={saveProfile} className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg">설정 완료하기</button>
+              <button onClick={() => { setTempNickname(nickname); setShowModal(false); }} className="w-full text-center text-sm font-black text-slate-400 hover:text-slate-600 transition-colors py-1">나중에 할게요</button>
             </div>
-
           </div>
         </div>
       )}
@@ -180,8 +172,8 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* 🔔 알림 아이콘 벨 센터 */}
-            {user && (
+            {/* 🔔 로그인 및 닉네임이 있는 사람에게만 실시간 종 노출 */}
+            {user && nickname && (
               <div className="relative">
                 <button onClick={() => { setShowNotiDropdown(!showNotiDropdown); if(!showNotiDropdown) markAllAsRead(); }} className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative">
                   🔔
@@ -219,10 +211,14 @@ export default function Navbar() {
             {/* 👤 유저 정보 및 로그아웃 */}
             {user ? (
               <div className="flex items-center gap-4">
-                {nickname && (
+                {nickname ? (
                   <Link href="/mypage" className="text-sm font-black text-slate-700 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 hover:border-blue-500 transition-all">
                     {nickname} 님
                   </Link>
+                ) : (
+                  <button onClick={() => setShowModal(true)} className="text-xs font-black text-blue-500 bg-blue-50 px-4 py-2.5 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all">
+                    🌱 닉네임 설정하기
+                  </button>
                 )}
                 <button onClick={() => supabase.auth.signOut()} className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors">로그아웃</button>
               </div>
