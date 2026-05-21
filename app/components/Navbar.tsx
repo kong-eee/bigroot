@@ -179,13 +179,15 @@ export default function Navbar() {
               <div className="w-10 h-10 bg-[#007AFF] rounded-xl flex items-center justify-center text-white font-black text-xl">B</div>
               <span className="text-2xl font-[1000] tracking-tighter text-slate-900">BIG<span className="text-[#007AFF]">ROOT</span></span>
             </Link>
-            <div className="hidden lg:flex items-center gap-10 text-[15px] font-bold text-slate-500">
-              <Link href="/contract" className="hover:text-[#007AFF] transition-colors text-blue-600">계약전 체크!🔥</Link>
-              <Link href="/community" className="hover:text-[#007AFF] transition-colors">커뮤니티</Link>
-              <Link href="/rights-guide" className="hover:text-[#007AFF] transition-colors">권리백과</Link>
-              <Link href="/rent-increase" className="hover:text-[#007AFF] transition-colors">임대료진단</Link>
-              <Link href="/golden-time" className="hover:text-[#007AFF] transition-colors">골든타임</Link>
-            </div>
+            
+<div className="hidden lg:flex items-center gap-10 text-[15px] font-bold text-slate-500">
+  <Link href="/contract" className="hover:text-[#007AFF] transition-colors text-blue-600">계약전 체크!🔥</Link>
+  <Link href="/safety-check" className="hover:text-[#007AFF] transition-colors text-emerald-600 font-black">안전진단기 단독✨</Link> {/* ✅ 추가 */}
+  <Link href="/community" className="hover:text-[#007AFF] transition-colors">커뮤니티</Link>
+  <Link href="/rights-guide" className="hover:text-[#007AFF] transition-colors">권리백과</Link>
+  <Link href="/rent-increase" className="hover:text-[#007AFF] transition-colors">임대료진단</Link>
+  <Link href="/golden-time" className="hover:text-[#007AFF] transition-colors">골든타임</Link>
+</div>
           </div>
 
           <div className="flex items-center gap-4">
