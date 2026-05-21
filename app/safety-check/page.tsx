@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Script from 'next/script';
 
-// 💡 [핵심 해결책] 글로벌 window 객체에 naver가 존재할 수 있다고 타입스크립트에게 알려주는 선언문입니다.
 declare global {
   interface Window {
     naver: any;
@@ -48,7 +47,7 @@ export default function SafetyCheckPage() {
 
   const handleFetchOfficialPrice = async () => {
     if (!address.trim()) return alert("주소를 입력해 주세요!");
-    if (!mapInstance || !markerInstance) return alert("지도 엔진이 아직 준비되지 않았습니다. 잠시만 기다려주세요!");
+    if (!mapInstance || !markerInstance) return alert("지도 엔진이 로딩 중입니다. 잠시 후 다시 눌러주세요!");
     
     setIsLoading(true);
     setResult(null);
@@ -64,10 +63,7 @@ export default function SafetyCheckPage() {
       setOfficialPrice(data.officialPrice);
 
       window.naver.maps.Service.geocode({ query: address }, function (status: any, response: any) {
-        if (status !== window.naver.maps.Service.Status.OK) {
-          console.warn("지도 주소 변환 실패");
-          return;
-        }
+        if (status !== window.naver.maps.Service.Status.OK) return;
 
         const item = response.v2.addresses[0];
         if (item) {
@@ -81,7 +77,7 @@ export default function SafetyCheckPage() {
       alert(`🏠 주소 매칭 및 위치 추적 완료!\n공시가격: ${data.officialPrice.toLocaleString()}만 원`);
 
     } catch (err: any) {
-      alert(`💡 안내: ${err.message}\n데이터가 공공망에 없거나 오피스텔인 경우 직접 입력하시면 즉시 진단이 가능합니다.`);
+      alert(`💡 안내: ${err.message}\n\n※ 데이터가 공공망에 없거나 오피스텔인 경우 직접 입력하시면 즉시 진단이 가능합니다!`);
     } finally {
       setIsLoading(false);
     }
@@ -115,8 +111,9 @@ export default function SafetyCheckPage() {
 
   return (
     <>
+      {/* 🎯 [수정 완료] 네이버 콘솔 확인 결과에 따라 검증된 진짜 Client ID를 주소창에 직접 박아 넣었습니다. */}
       <Script
-        src={`https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID}&submodules=geocoder`}
+        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=9eu2mq3ip3&submodules=geocoder"
         onLoad={initMap}
       />
 
@@ -138,11 +135,10 @@ export default function SafetyCheckPage() {
           </div>
 
           <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 space-y-6">
-            
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400 tracking-wide pl-1">검색 주소 (번지수까지 기입)</label>
               <div className="flex gap-2">
-                <input type="text" placeholder="예: 경기도 성남시 분당구 삼평동 624" value={address} onChange={(e) => setAddress(e.target.value)} className="flex-1 p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm text-slate-900 placeholder:text-slate-300" />
+                <input type="text" placeholder="예: 서울시 송파구 방이동 143-12" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm text-slate-900 placeholder:text-slate-300" />
                 <button onClick={handleFetchOfficialPrice} disabled={isLoading} className="px-6 py-4 bg-slate-900 text-white text-xs font-black rounded-2xl shrink-0 hover:bg-slate-800 transition-all disabled:bg-slate-300">
                   {isLoading ? '조회 중...' : '주소 조회 🔍'}
                 </button>
@@ -151,10 +147,7 @@ export default function SafetyCheckPage() {
 
             <div className="space-y-2">
               <label className="text-xs font-black text-slate-400 tracking-wide pl-1">건물 위치 확인</label>
-              <div 
-                id="naver-map" 
-                className="w-full h-64 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-hidden shadow-inner relative z-10"
-              />
+              <div id="naver-map" className="w-full h-64 bg-slate-100 rounded-2xl border border-slate-200/60 overflow-hidden shadow-inner relative z-10" />
             </div>
 
             <div className="space-y-2">
