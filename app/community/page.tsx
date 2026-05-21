@@ -14,6 +14,7 @@ export default function CommunityPage() {
   const [newPostCategory, setNewPostCategory] = useState<'주택' | '상가'>('주택');
   
   const [filterCategory, setFilterCategory] = useState<'all' | '주택' | '상가'>('all');
+  const [searchQuery, setSearchQuery] = useState(''); // 🔍 [신기능] 검색어 상태 추가
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [commentContent, setCommentContent] = useState('');
   const [sortBy, setSortBy] = useState<'latest' | 'popular'>('latest');
@@ -119,10 +120,9 @@ export default function CommunityPage() {
     } else {
       const targetWriterId = post.author_id || post.user_id;
 
-      // 💡 해결완료: 모든 주석을 자바스크립트 규격(//)으로 안전하게 교체했습니다.
       const { error: notiError } = await supabase.from('notifications').insert({
-        user_id: targetWriterId, // 알림을 받을 사람 (글쓴이)
-        actor_id: user.id,       // 액션을 한 사람 (댓글 단 사람)
+        user_id: targetWriterId,
+        actor_id: user.id,
         post_id: post.id,
         type: 'comment'
       });
@@ -139,12 +139,26 @@ export default function CommunityPage() {
   const deleteItem = async (e: React.MouseEvent, table: string, id: string, hasComments: boolean = false) => {
     e.stopPropagation(); 
     if (table === 'posts' && hasComments) return alert("답글이 달린 게시글은 삭제할 수 없습니다. 🔒");
-    if (!confirm("정말로 삭제하시겠습니까?")) return;
+    if (!confirm("정말로 Bonds 삭제하시겠습니까?")) return;
     const { status } = await supabase.from(table).delete().eq('id', id);
     if (status === 200 || status === 204) { alert("삭제되었습니다."); fetchPosts(); }
   };
 
-  const filteredPosts = posts.filter((post: any) => filterCategory === 'all' ? true : post.category === filterCategory);
+  // 🔍 [신기능] 카테고리 필터링과 검색어 필터링을 체이닝하여 다중 연산합니다.
+  const filteredPosts = posts.filter((post: any) => {
+    const matchesCategory = filterCategory === 'all' ? true : post.category === filterCategory;
+    
+    // 제목, 내용, 작성자 닉네임 중 하나라도 검색어를 포함하면 통과!
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch = query === '' ? true : (
+      post.title?.toLowerCase().includes(query) ||
+      post.content?.toLowerCase().includes(query) ||
+      post.profiles?.nickname?.toLowerCase().includes(query)
+    );
+
+    return matchesCategory && matchesSearch;
+  });
+
   const isAllowed = user && profile?.nickname;
 
   return (
@@ -159,12 +173,32 @@ export default function CommunityPage() {
           </div>
         </div>
 
+        {/* 🔍 [신기능] 프리미엄 검색 바 디자인 빌트인 */}
+        <div className="relative w-full">
+          <input 
+            type="text" 
+            placeholder="🔍 제목, 내용 또는 작성자 닉네임으로 검색하세요" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-6 py-4 bg-white rounded-2xl border border-slate-200 outline-none font-bold text-slate-900 placeholder:text-slate-300 text-sm focus:border-blue-500 shadow-sm transition-all"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              X 지우기
+            </button>
+          )}
+        </div>
+
         <div className="flex bg-white border border-slate-200/80 rounded-2xl p-1.5 shadow-sm gap-1 w-full">
           <button onClick={() => { setFilterCategory('all'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === 'all' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🌏 전체보기</button>
           <button onClick={() => { setFilterCategory('주택'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === '주택' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🏠 주택 게시판</button>
           <button onClick={() => { setFilterCategory('상가'); setActivePostId(null); }} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${filterCategory === '상가' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}>🛍️ 상가 게시판</button>
         </div>
 
+        {/* 글쓰기 구역 */}
         <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 relative overflow-hidden">
           {!isAllowed && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
@@ -181,9 +215,12 @@ export default function CommunityPage() {
           <button onClick={handleCreatePost} className="w-full py-4 bg-[#007AFF] text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all">게시물 올리기</button>
         </div>
 
+        {/* 게시글 목록 구역 */}
         <div className="space-y-3">
           {filteredPosts.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-[2rem] border border-slate-100 text-slate-300 font-bold text-sm">등록된 게시글이 없습니다. 📝</div>
+            <div className="text-center py-20 bg-white rounded-[2rem] border border-slate-100 text-slate-300 font-bold text-sm">
+              {searchQuery ? '🔍 검색 결과와 일치하는 게시글이 없습니다.' : '등록된 게시글이 없습니다. 📝'}
+            </div>
           ) : (
             filteredPosts.map((post: any) => (
               <div 
