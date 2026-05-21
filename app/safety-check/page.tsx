@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Script from 'next/script';
+import Script from 'next/script'; // 다시 깔끔한 Next.js 오리지널 방식으로 복구!
 
 declare global {
   interface Window {
@@ -111,9 +111,10 @@ export default function SafetyCheckPage() {
 
   return (
     <>
-      {/* 🎯 [수정 완료] 네이버 콘솔 확인 결과에 따라 검증된 진짜 Client ID를 주소창에 직접 박아 넣었습니다. */}
+      {/* 🎯 [핵심 수정 완료] 구형 ncpClientId를 버리고, 신규 통합 Maps 플랫폼 전용인 oapi와 ncpKeyId로 전면 교체했습니다! */}
       <Script
-        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=9eu2mq3ip3&submodules=geocoder"
+        strategy="afterInteractive"
+        src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=9eu2mq3ip3&submodules=geocoder"
         onLoad={initMap}
       />
 
