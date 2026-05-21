@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
@@ -15,6 +15,8 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
+
+  const notiContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -45,7 +47,7 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 실시간 알림 감시 카메라
+  // 실시간 알림 리스너
   useEffect(() => {
     if (!user) return;
 
@@ -70,6 +72,17 @@ export default function Navbar() {
     };
   }, [user]);
 
+  // 바깥 영역 클릭 시 닫힘
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notiContainerRef.current && !notiContainerRef.current.contains(event.target as Node)) {
+        setShowNotiDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const fetchProfileAndNoti = async (userId: string) => {
     const { data: profile } = await supabase.from('profiles').select('nickname, gender').eq('id', userId).single();
     if (profile) {
@@ -82,7 +95,6 @@ export default function Navbar() {
       setShowModal(true);
     }
 
-    // 🔔 [정밀 수정] 강제 지정한 외래키 통로 이름(fk_noti_actor)으로 안전하게 조인합니다.
     const { data: notis, error } = await supabase
       .from('notifications')
       .select(`
@@ -94,8 +106,7 @@ export default function Navbar() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      // 혹시라도 에러가 나면 눈에 보이도록 경고창을 띄웁니다.
-      alert(`알림 불러오기 실패: ${error.message}`);
+      console.error("알림 불러오기 실패:", error.message);
       return;
     }
 
@@ -107,7 +118,7 @@ export default function Navbar() {
 
   const saveProfile = async () => {
     if (!tempNickname.trim()) return alert("닉네임을 입력해주세요!");
-    if (!gender) return alert("성별을 선택해주세요!");
+    if (!gender) return alert("성별을 Schuyler 수정해주세요!");
     
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, nickname: tempNickname, gender: gender, updated_at: new Date().toISOString(),
@@ -136,9 +147,9 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 온보딩 모달 */}
+      {/* 🎁 전역 온보딩 모달 (z-[130] 격상) */}
       {showModal && user && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-slate-100 relative text-slate-900">
             <div className="text-center space-y-3">
               <div className="text-4xl">🌱</div>
@@ -160,8 +171,8 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* 글로벌 공통 상단 네비게이션 바 */}
-      <nav className="fixed top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-slate-100">
+      {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
+      <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-16">
             <Link href="/" className="flex items-center gap-2">
@@ -178,9 +189,8 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* 로그인 및 닉네임이 있는 사람에게만 종 노출 */}
             {user && nickname && (
-              <div className="relative">
+              <div className="relative" ref={notiContainerRef}>
                 <button onClick={() => { setShowNotiDropdown(!showNotiDropdown); if(!showNotiDropdown) markAllAsRead(); }} className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative">
                   🔔
                   {unreadCount > 0 && (
@@ -189,8 +199,10 @@ export default function Navbar() {
                     </span>
                   )}
                 </button>
+                
+                {/* 알림 드롭다운 레이어 (z-[110] 배정) */}
                 {showNotiDropdown && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl z-50 py-2">
+                  <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[110] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
                       <span className="font-black text-xs text-slate-800">최신 알림 센터</span>
                     </div>
@@ -214,7 +226,6 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* 유저 정보 및 로그아웃 */}
             {user ? (
               <div className="flex items-center gap-4">
                 {nickname ? (
