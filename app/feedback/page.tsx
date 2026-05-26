@@ -14,26 +14,6 @@ type FeedbackRow = {
   profiles?: { nickname: string | null } | null;
 };
 
-function normalizeFeedbackRows(data: unknown): FeedbackRow[] {
-  if (!Array.isArray(data)) return [];
-  return data.map((row) => {
-    const r = row as Record<string, unknown>;
-    const rawProfile = r.profiles;
-    const profile = Array.isArray(rawProfile)
-      ? (rawProfile[0] as { nickname: string | null } | undefined)
-      : (rawProfile as { nickname: string | null } | null | undefined);
-    return {
-      id: String(r.id),
-      author_id: String(r.author_id),
-      title: String(r.title),
-      content: String(r.content),
-      is_public: Boolean(r.is_public),
-      created_at: String(r.created_at),
-      profiles: profile ?? null,
-    };
-  });
-}
-
 export default function FeedbackPage() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [profile, setProfile] = useState<{
@@ -42,6 +22,7 @@ export default function FeedbackPage() {
   } | null>(null);
   const [items, setItems] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -70,22 +51,41 @@ export default function FeedbackPage() {
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    setLoadError(null);
+
+    const { data: rows, error } = await supabase
       .from('feedback_requests')
-      .select('id, author_id, title, content, is_public, created_at, profiles(nickname)')
+      .select('id, author_id, title, content, is_public, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('문의 목록 로드 실패:', error.message);
-      if (error.message.includes('does not exist') || error.code === '42P01') {
-        alert(
-          '문의 테이블이 아직 없습니다. Supabase SQL Editor에서 supabase/migrations/20260527000000_feedback_requests.sql 을 실행해 주세요.'
-        );
-      }
+      console.error('문의 목록 로드 실패:', error.message, error);
+      setLoadError(error.message);
       setItems([]);
-    } else {
-      setItems(normalizeFeedbackRows(data));
+      setLoading(false);
+      return;
     }
+
+    const list = rows ?? [];
+    const authorIds = [...new Set(list.map((r) => r.author_id))];
+    let nicknameById = new Map<string, string | null>();
+
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, nickname')
+        .in('id', authorIds);
+      nicknameById = new Map(
+        (profiles ?? []).map((p) => [p.id, p.nickname as string | null])
+      );
+    }
+
+    setItems(
+      list.map((row) => ({
+        ...row,
+        profiles: { nickname: nicknameById.get(row.author_id) ?? null },
+      }))
+    );
     setLoading(false);
   }, []);
 
@@ -95,7 +95,7 @@ export default function FeedbackPage() {
 
   useEffect(() => {
     fetchItems();
-  }, [fetchItems]);
+  }, [fetchItems, user?.id, profile?.is_admin]);
 
   const visibleItems = items.filter((row) => {
     if (filter === 'mine' && user) return row.author_id === user.id;
@@ -265,10 +265,21 @@ export default function FeedbackPage() {
           )}
         </div>
 
+        {loadError && (
+          <p className="text-center text-red-500 font-bold py-4 text-sm">
+            목록을 불러오지 못했습니다: {loadError}
+            <br />
+            <span className="text-slate-500 font-bold">
+              Supabase에서 20260527200000_feedback_rls_and_profiles_fk.sql 을 실행해 주세요.
+            </span>
+          </p>
+        )}
         {loading ? (
           <p className="text-center text-slate-400 font-bold py-8">불러오는 중…</p>
         ) : visibleItems.length === 0 ? (
-          <p className="text-center text-slate-400 font-bold py-8">아직 문의가 없어요.</p>
+          <p className="text-center text-slate-400 font-bold py-8">
+            {loadError ? '위 오류를 해결한 뒤 새로고침해 주세요.' : '아직 문의가 없어요.'}
+          </p>
         ) : (
           <ul className="space-y-4">
             {visibleItems.map((row) => {

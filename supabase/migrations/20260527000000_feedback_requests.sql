@@ -36,20 +36,38 @@ as $$
   );
 $$;
 
-revoke all on function public.is_app_admin() from public;
 grant execute on function public.is_app_admin() to authenticated;
+grant execute on function public.is_app_admin() to anon;
 
 -- 4) RLS
 alter table public.feedback_requests enable row level security;
 
 drop policy if exists feedback_select on public.feedback_requests;
-create policy feedback_select on public.feedback_requests
-  for select to authenticated, anon
+drop policy if exists feedback_select_anon on public.feedback_requests;
+drop policy if exists feedback_select_authenticated on public.feedback_requests;
+
+create policy feedback_select_anon on public.feedback_requests
+  for select to anon
+  using (is_public = true);
+
+create policy feedback_select_authenticated on public.feedback_requests
+  for select to authenticated
   using (
     is_public = true
     or author_id = auth.uid()
     or public.is_app_admin()
   );
+
+-- PostgREST profiles(nickname) embed
+do $$
+begin
+  alter table public.feedback_requests
+    add constraint feedback_requests_author_profiles_fkey
+    foreign key (author_id) references public.profiles (id)
+    on delete cascade;
+exception
+  when duplicate_object then null;
+end $$;
 
 drop policy if exists feedback_insert on public.feedback_requests;
 create policy feedback_insert on public.feedback_requests
