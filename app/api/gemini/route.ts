@@ -1,42 +1,67 @@
-import { GoogleGenAI } from "@google/genai"; // @google/genai 패키지 사용
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
+import { GEMINI_KEY_ENV_NAME, getGeminiApiKey } from "@/lib/gemini-env";
+import {
+  buildLegalAiPrompt,
+  LEGAL_AI_MAX_OUTPUT_TOKENS,
+  sanitizeLegalAiResponse,
+} from "@/lib/legal-ai";
 
 export async function POST(request: Request) {
-  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "API Key Missing" }, { status: 500 });
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    return NextResponse.json(
+      {
+        error: "GEMINI_KEY_NOT_CONFIGURED",
+        message:
+          "Gemini API 키가 서버에 설정되지 않았습니다. Vercel 대시보드 → Settings → Environment Variables에 GOOGLE_GEMINI_API_KEY를 추가한 뒤 재배포해 주세요.",
+        envName: GEMINI_KEY_ENV_NAME,
+      },
+      { status: 503 }
+    );
+  }
 
   try {
-    const { query, lawText } = await request.json();
+    const { query, lawExcerpt } = await request.json();
+    const q = typeof query === "string" ? query.trim() : "";
+    const excerpt = typeof lawExcerpt === "string" ? lawExcerpt.trim() : "";
 
-    /**
-     * [🚨 해결의 핵심] 
-     * 가이드에 따르면, Gemini 3 시리즈 같은 프리뷰 모델은 
-     * 반드시 apiVersion을 'v1beta'로 명시해야만 구글 서버가 인식합니다.
-     */
-    const client = new GoogleGenAI({ 
-      apiKey: apiKey,
-      apiVersion: 'v1beta' // 404 에러를 잡는 마법의 한 줄입니다.
+    if (!q) {
+      return NextResponse.json({ error: "질문이 비어 있습니다." }, { status: 400 });
+    }
+
+    if (!excerpt) {
+      return NextResponse.json({
+        text:
+          "질문과 관련된 조문을 찾지 못했어요. ‘갱신’, ‘보증금’, ‘퇴실 통보’처럼 조금 더 구체적으로 다시 물어봐 주세요. (법령 JSON 기준으로만 안내해요)",
+        skippedApi: true,
+      });
+    }
+
+    const client = new GoogleGenAI({
+      apiKey,
+      apiVersion: "v1beta",
     });
 
-    /**
-     * [🚨 모델명 매칭]
-     * 2026년 4월 가이드 기준, 프리뷰 모델은 이름 뒤에 반드시 '-preview'가 붙어야 합니다.
-     * 2.0 모델이 신규 유저에게 차단되었다면, 아래 3.0 프리뷰가 유일한 답입니다.
-     */
-    const modelName = "gemini-3-flash-preview"; 
+    const modelName = "gemini-3-flash-preview";
 
     const response = await client.models.generateContent({
       model: modelName,
-      contents: [{
-        role: "user",
-        parts: [{
-          text: `당신은 주택임대차보호법 전문 변호사입니다.\n세입자 질문: ${query}\n참고 법령: ${lawText}`
-        }]
-      }]
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: buildLegalAiPrompt(q, excerpt) }],
+        },
+      ],
+      config: {
+        maxOutputTokens: LEGAL_AI_MAX_OUTPUT_TOKENS,
+        temperature: 0.35,
+      },
     });
 
     // 신형 SDK는 response.text()가 아니라 .text 속성을 바로 사용합니다.
-    return NextResponse.json({ text: response.text });
+    const raw = response.text ?? "";
+    return NextResponse.json({ text: sanitizeLegalAiResponse(raw) || raw });
 
   } catch (error: any) {
     console.error("🚨 가이드 기반 최종 에러:", error.message);
