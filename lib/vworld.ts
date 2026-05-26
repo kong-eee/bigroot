@@ -6,7 +6,51 @@ export function resolveVworldApiKey(): string | null {
     return cleaned;
   };
 
-  return sanitize(process.env.VWORLD_API_KEY) ?? sanitize(process.env.NEXT_PUBLIC_DATA_GO_KR_KEY);
+  return sanitize(process.env.VWORLD_API_KEY);
+}
+
+/** 브이월드 개발자센터에 등록한 서비스 URL (NED·검색 API domain 파라미터) */
+export function getVworldRegisteredDomain(): string | null {
+  const explicit = process.env.VWORLD_REGISTERED_DOMAIN?.trim();
+  if (explicit) return normalizeDomain(explicit);
+
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (production) return normalizeDomain(production);
+
+  return null;
+}
+
+/** NED·검색·2D데이터 API용 domain (localhost는 등록되지 않으면 제외) */
+export function getVworldApiDomainCandidates(request: Request): string[] {
+  const candidates: string[] = [];
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const normalized = normalizeDomain(value);
+    if (!candidates.includes(normalized)) candidates.push(normalized);
+  };
+
+  add(getVworldRegisteredDomain());
+
+  if (process.env.VERCEL) {
+    add(getVercelOrigin());
+    const requestOrigin = getRequestOrigin(request);
+    if (requestOrigin && !isLocalhostDomain(requestOrigin)) {
+      add(requestOrigin);
+    }
+  } else {
+    const configured = process.env.VWORLD_DOMAIN?.trim();
+    if (configured && !isLocalhostDomain(configured)) {
+      add(configured);
+    }
+    add(getRequestOrigin(request));
+    add(getVercelOrigin());
+  }
+
+  const withoutLocalhost = candidates.filter((d) => !isLocalhostDomain(d));
+  if (withoutLocalhost.length) return withoutLocalhost;
+
+  if (candidates.length) return candidates;
+  return ['http://localhost:3000'];
 }
 
 export function vworldKeySetupHint(): string {
@@ -80,42 +124,13 @@ function getVercelOrigin(): string | null {
   return null;
 }
 
-/** Vercel 배포 환경에서 사용할 domain 후보 (우선순위 순) */
+/** @deprecated getVworldApiDomainCandidates 사용 */
 export function getVworldDomainCandidates(request: Request): string[] {
-  const candidates: string[] = [];
-  const add = (value: string | null | undefined) => {
-    if (!value) return;
-    const normalized = normalizeDomain(value);
-    if (!candidates.includes(normalized)) candidates.push(normalized);
-  };
-
-  if (process.env.VERCEL) {
-    add(getVercelOrigin());
-    const requestOrigin = getRequestOrigin(request);
-    if (requestOrigin && !isLocalhostDomain(requestOrigin)) {
-      add(requestOrigin);
-    }
-    return candidates.length
-      ? candidates
-      : [getRequestOrigin(request) ?? 'http://localhost:3000'];
-  }
-
-  const configured = process.env.VWORLD_DOMAIN?.trim();
-  if (configured && !isLocalhostDomain(configured)) {
-    add(configured);
-  } else if (configured) {
-    add(configured);
-  }
-
-  add(getRequestOrigin(request));
-  add(getVercelOrigin());
-
-  if (!candidates.length) candidates.push('http://localhost:3000');
-  return candidates;
+  return getVworldApiDomainCandidates(request);
 }
 
 export function resolveVworldDomain(request: Request): string {
-  return getVworldDomainCandidates(request)[0];
+  return getVworldApiDomainCandidates(request)[0];
 }
 
 export async function vworldFetch(url: string, init?: RequestInit): Promise<Response> {

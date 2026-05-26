@@ -5,7 +5,7 @@ import {
   resolveDataGoKrKey,
 } from '@/lib/data-go-kr';
 import {
-  getVworldDomainCandidates,
+  getVworldApiDomainCandidates,
   parseVworldJson,
   resolveVworldApiKey,
   vworldKeySetupHint,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/vworld';
 import {
   fetchVworldApartHousingPrices,
+  fetchVworldIndvdHousingPrices,
   mapVworldHousingRecord,
 } from '@/lib/vworld-housing';
 import { buildPnu } from '@/lib/pnu';
@@ -54,10 +55,8 @@ async function searchAddressPnu(
   queryAddress: string,
   domains: string[]
 ): Promise<{ item: VworldSearchItem; pnu: string } | null> {
-  const domainList = process.env.VERCEL ? domains.slice(0, 1) : domains;
-  const categories = process.env.VERCEL
-    ? (['parcel'] as const)
-    : (['parcel', 'road'] as const);
+  const domainList = process.env.VERCEL ? domains : domains;
+  const categories = ['parcel', 'road'] as const;
 
   for (const domain of domainList) {
     for (const category of categories) {
@@ -164,24 +163,23 @@ export async function GET(request: Request) {
       );
     }
 
-    const domains = getVworldDomainCandidates(request);
+    const domains = getVworldApiDomainCandidates(request);
     const queryAddress = address?.trim() ?? '';
 
     let item: VworldSearchItem | null = null;
     let pnu: string | null = null;
 
-    if (dongCode && jibun) {
-      pnu = buildPnu(dongCode, jibun);
-    }
-
-    if (!pnu && queryAddress) {
+    if (queryAddress) {
       const found = await searchAddressPnu(vworldKey, queryAddress, domains);
       if (found) {
         item = found.item;
         pnu = found.pnu;
       }
-    } else if (pnu) {
-      item = { address: { pnu } };
+    }
+
+    if (!pnu && dongCode && jibun) {
+      pnu = buildPnu(dongCode, jibun);
+      if (pnu && !item) item = { address: { pnu } };
     }
 
     if (!pnu) {
@@ -226,6 +224,13 @@ export async function GET(request: Request) {
         addRoom(mapVworldHousingRecord(record));
       }
 
+      if (!rooms.length) {
+        const indvdRooms = await fetchVworldIndvdHousingPrices(request, targetPnu);
+        for (const record of indvdRooms) {
+          addRoom(mapVworldHousingRecord(record));
+        }
+      }
+
       if (!rooms.length && resolveDataGoKrKey()) {
         const housing = await fetchHousingPriceRecords(targetPnu);
         if (housing?.records.length) {
@@ -255,12 +260,10 @@ export async function GET(request: Request) {
 
     let uniqueRooms = await collectRooms(pnu);
 
-    if (!uniqueRooms.length && queryAddress) {
-      const found = await searchAddressPnu(vworldKey, queryAddress, domains);
-      if (found && found.pnu !== pnu) {
-        pnu = found.pnu;
-        item = found.item;
-        if (item?.address?.bldnm) buildingName = item.address.bldnm;
+    if (!uniqueRooms.length && dongCode && jibun) {
+      const builtPnu = buildPnu(dongCode, jibun);
+      if (builtPnu && builtPnu !== pnu) {
+        pnu = builtPnu;
         uniqueRooms = await collectRooms(pnu);
       }
     }
