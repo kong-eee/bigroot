@@ -15,6 +15,7 @@ import {
   fetchVworldApartHousingPrices,
   mapVworldHousingRecord,
 } from '@/lib/vworld-housing';
+import { buildPnu } from '@/lib/pnu';
 
 type VworldSearchItem = {
   address?: { pnu?: string; bldnm?: string };
@@ -133,10 +134,15 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
+  const dongCode = searchParams.get('dongCode');
+  const jibun = searchParams.get('jibun') ?? searchParams.get('detail');
 
-  if (!address) {
+  if (!address && !(dongCode && jibun)) {
     return NextResponse.json(
-      { success: false, error: '주소가 누락되었습니다.' },
+      {
+        success: false,
+        error: '주소(address) 또는 dongCode+jibun 파라미터가 필요합니다.',
+      },
       { status: 400 }
     );
   }
@@ -154,21 +160,36 @@ export async function GET(request: Request) {
     }
 
     const domains = getVworldDomainCandidates(request);
-    const queryAddress = address.trim();
+    const queryAddress = address?.trim() ?? '';
 
-    const found = await searchAddressPnu(vworldKey, queryAddress, domains);
-    if (!found) {
+    let item: VworldSearchItem | null = null;
+    let pnu: string | null = null;
+
+    if (dongCode && jibun) {
+      pnu = buildPnu(dongCode, jibun);
+    }
+
+    if (!pnu && queryAddress) {
+      const found = await searchAddressPnu(vworldKey, queryAddress, domains);
+      if (found) {
+        item = found.item;
+        pnu = found.pnu;
+      }
+    } else if (pnu) {
+      item = { address: { pnu } };
+    }
+
+    if (!pnu) {
       return NextResponse.json(
         {
           success: false,
-          error: '해당 주소의 필지번호(PNU)를 찾지 못했습니다. 번지를 다시 확인해 주세요.',
+          error:
+            '번지 형식을 확인해 주세요. 예: 143 또는 143-12 (산번지는 산123-4)',
         },
-        { status: 404 }
+        { status: 400 }
       );
     }
-
-    const { item, pnu } = found;
-    let buildingName = item.address?.bldnm || '';
+    let buildingName = item?.address?.bldnm || '';
 
     const uniqueRooms: VworldRoom[] = [];
     const seen = new Set<string>();
@@ -218,7 +239,7 @@ export async function GET(request: Request) {
           if (fallback) {
             uniqueRooms.push(fallback);
             if (!buildingName) {
-              buildingName = String(item.address?.bldnm || item.address?.pnu || '해당 필지');
+              buildingName = String(item?.address?.bldnm || item?.address?.pnu || '해당 필지');
             }
             break;
           }

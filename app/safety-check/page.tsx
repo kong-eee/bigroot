@@ -269,9 +269,12 @@ export default function SafetyCheckPage() {
     );
 
     try {
-      const res = await fetch(
-        `/api/official-price?address=${encodeURIComponent(fullAddress)}`
-      );
+      const params = new URLSearchParams({
+        dongCode: selectedDong,
+        jibun: detailAddress.trim(),
+        address: fullAddress,
+      });
+      const res = await fetch(`/api/official-price?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok || !data.success) {

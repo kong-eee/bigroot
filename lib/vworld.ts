@@ -124,6 +124,8 @@ export async function vworldFetch(url: string, init?: RequestInit): Promise<Resp
     bases.push(url.replace('https://api.vworld.kr', 'http://api.vworld.kr'));
   }
 
+  const timeoutMs = process.env.VERCEL ? 6000 : 12000;
+
   let lastError: unknown;
   for (const targetUrl of bases) {
     try {
@@ -135,7 +137,7 @@ export async function vworldFetch(url: string, init?: RequestInit): Promise<Resp
           'User-Agent': 'BIGROOT/1.0',
           ...(init?.headers ?? {}),
         },
-        signal: init?.signal ?? AbortSignal.timeout(12000),
+        signal: init?.signal ?? AbortSignal.timeout(timeoutMs),
       });
     } catch (error: unknown) {
       lastError = error;

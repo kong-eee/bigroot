@@ -62,12 +62,13 @@ export async function fetchVworldApartHousingPrices(
   pnu: string
 ): Promise<NedHousingRecord[]> {
   const domains = getVworldDomainCandidates(request);
+  const domainList = process.env.VERCEL ? domains.slice(0, 1) : domains;
   const year = new Date().getFullYear();
   const years = [year, year - 1, year - 2];
 
   for (const stdrYear of years) {
     const all: NedHousingRecord[] = [];
-    for (const domain of domains) {
+    for (const domain of domainList) {
       try {
         for (let page = 1; page <= 10; page++) {
           const batch = await fetchNedApartPage(request, pnu, stdrYear, page, domain);
