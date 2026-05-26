@@ -55,11 +55,8 @@ async function searchAddressPnu(
   queryAddress: string,
   domains: string[]
 ): Promise<{ item: VworldSearchItem; pnu: string } | null> {
-  const domainList = process.env.VERCEL ? domains : domains;
-  const categories = ['parcel', 'road'] as const;
-
-  for (const domain of domainList) {
-    for (const category of categories) {
+  for (const domain of domains) {
+    for (const category of ['parcel', 'road'] as const) {
       const params = new URLSearchParams({
         key: apiKey,
         domain,
