@@ -187,6 +187,28 @@ export default function Navbar() {
     }
   };
 
+  const handleNotificationClick = async (noti: AppNotification) => {
+    setShowNotiDropdown(false);
+
+    if (!noti.is_read) {
+      try {
+        await markNotificationsRead(noti.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === noti.id ? { ...n, is_read: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error('알림 읽음 처리 실패:', error);
+      }
+    }
+
+    if (noti.post_id) {
+      router.push(`/community?post=${noti.post_id}`);
+    } else {
+      router.push('/community');
+    }
+  };
+
   const badgeLabel = formatUnreadBadge(unreadCount);
 
   const loginWithGoogle = async () => {
@@ -271,14 +293,7 @@ export default function Navbar() {
                             <button
                               key={noti.id}
                               type="button"
-                              onClick={() => {
-                                setShowNotiDropdown(false);
-                                if (noti.post_id) {
-                                  router.push(`/community?post=${noti.post_id}`);
-                                } else {
-                                  router.push('/community');
-                                }
-                              }}
+                              onClick={() => handleNotificationClick(noti)}
                               className={`w-full text-left p-3.5 border-b border-slate-50 last:border-0 flex gap-2 items-start hover:bg-slate-50 transition-colors ${!noti.is_read ? 'bg-blue-50/40' : ''}`}
                             >
                               <span>{noti.type === 'comment' ? '💬' : '👍'}</span>

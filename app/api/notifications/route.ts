@@ -130,7 +130,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH() {
+export async function PATCH(request: Request) {
   try {
     const supabase = await createServerSupabase();
     const {
@@ -141,11 +141,24 @@ export async function PATCH() {
       return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    const { error } = await supabase
+    let body: { id?: string } = {};
+    try {
+      body = (await request.json()) as { id?: string };
+    } catch {
+      /* empty body = mark all */
+    }
+
+    let query = supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('user_id', user.id)
       .eq('is_read', false);
+
+    if (body.id) {
+      query = query.eq('id', body.id);
+    }
+
+    const { error } = await query;
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });

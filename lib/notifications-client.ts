@@ -44,8 +44,12 @@ export async function createNotification(payload: {
   return data;
 }
 
-export async function markNotificationsRead() {
-  const res = await fetch('/api/notifications', { method: 'PATCH' });
+export async function markNotificationsRead(notificationId?: string) {
+  const res = await fetch('/api/notifications', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(notificationId ? { id: notificationId } : {}),
+  });
   const data = await res.json();
   if (!res.ok || !data.success) {
     throw new Error(data.error || '읽음 처리 실패');
