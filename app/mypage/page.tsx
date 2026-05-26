@@ -135,21 +135,12 @@ export default function MyPage() {
 
   return (
     <div className="page-main">
-      <nav className="w-full bg-white border-b border-slate-100 h-20 flex items-center">
-        <div className="max-w-6xl mx-auto w-full px-6 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-[1000] tracking-tighter text-slate-900">
-            BIG<span className="text-[#007AFF]">ROOT</span> <span className="text-slate-400 font-bold ml-1 text-sm">MyPage</span>
-          </Link>
-          <Link href="/" className="text-sm font-black text-slate-500 hover:text-[#007AFF] transition-colors">메인 홈으로</Link>
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="page-container page-container-wide py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* 프로필 카드 */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm text-center space-y-4">
-            <div className="w-20 h-20 bg-blue-50 text-[#007AFF] text-3xl font-black rounded-full flex items-center justify-center mx-auto shadow-inner">
+          <div className="ui-card p-8 text-center space-y-4">
+            <div className="w-20 h-20 bg-[var(--brand-soft)] text-[var(--brand)] text-3xl font-black rounded-full flex items-center justify-center mx-auto">
               {profile?.gender === '여성' ? '👩‍💼' : '👨‍💼'}
             </div>
             <div>
@@ -270,7 +261,7 @@ export default function MyPage() {
           </div>
         </div>
 
-      </main>
+      </div>
     </div>
   );
 }

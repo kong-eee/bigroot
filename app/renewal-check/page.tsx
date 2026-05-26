@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import PageHero from '@/app/components/layout/PageHero';
+import PageShell from '@/app/components/layout/PageShell';
 
 export default function RenewalCheckPage() {
   // 기존 상태값
@@ -84,13 +85,13 @@ export default function RenewalCheckPage() {
   };
 
   return (
-    <div className="page-main flex flex-col">
-      <header className="p-6 bg-white border-b flex items-center gap-4 sticky top-0 z-10 shadow-sm">
-        <Link href="/" className="p-2 hover:bg-gray-100 rounded-full text-gray-500">←</Link>
-        <h1 className="text-xl font-black text-blue-600 tracking-tighter">GeunBang 진단 센터 🏥</h1>
-      </header>
-
-      <main className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-6">
+    <PageShell>
+      <PageHero
+        badge="갱신 진단"
+        title="계약 갱신 진단"
+        description="지금이 갱신요구권 골든타임인지, 묵시적 갱신인지 확인해 보세요."
+      />
+      <div className="max-w-2xl mx-auto w-full space-y-6">
         {/* 1. 입력 섹션 */}
         <section className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-6">
           <div className="space-y-4">
@@ -208,7 +209,7 @@ export default function RenewalCheckPage() {
             
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 }

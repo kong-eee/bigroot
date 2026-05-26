@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import PageHero from '@/app/components/layout/PageHero';
 
 type FeedbackRow = {
   id: string;
@@ -164,18 +165,22 @@ export default function FeedbackPage() {
   return (
     <div className="page-main flex flex-col items-center p-4 sm:p-6">
       <div className="w-full max-w-2xl space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-black tracking-tight">문의 · 요청</h2>
-          <p className="text-sm text-slate-500 font-bold leading-relaxed">
-            만들어 주세요, 수정해 주세요 같은 의견을 남겨 주세요. 로그인·닉네임 설정 후 작성할 수
-            있으며, 전체공개/비공개를 선택할 수 있어요.
-            {isAdmin && (
-              <span className="block mt-1 text-amber-700">
-                운영자 모드: 비공개 글을 포함해 모든 문의를 볼 수 있습니다.
-              </span>
-            )}
-          </p>
-        </div>
+        <PageHero
+          badge="문의·요청"
+          title="문의 · 요청"
+          description={
+            <>
+              만들어 주세요, 수정해 주세요 같은 의견을 남겨 주세요. 로그인·닉네임 설정 후 작성할 수
+              있으며, 전체공개/비공개를 선택할 수 있어요.
+              {isAdmin && (
+                <span className="block mt-2 text-amber-700 font-bold">
+                  운영자 모드: 비공개 글을 포함해 모든 문의를 볼 수 있습니다.
+                </span>
+              )}
+            </>
+          }
+          showBrand={false}
+        />
 
         <div className="relative bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
           {!isAllowed && (

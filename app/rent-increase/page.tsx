@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import PageHero from '@/app/components/layout/PageHero';
+import PageShell from '@/app/components/layout/PageShell';
 
 export default function RentIncreasePage() {
   const [type, setType] = useState<'residential' | 'commercial'>('residential');
@@ -73,13 +74,13 @@ export default function RentIncreasePage() {
   };
 
   return (
-    <div className="page-main pb-20">
-      <header className="p-6 bg-white border-b border-gray-100 flex items-center gap-4 sticky top-0 z-50">
-        <Link href="/" className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">←</Link>
-        <h1 className="text-xl font-black text-gray-900 tracking-tight">임대료 인상 진단기</h1>
-      </header>
-
-      <main className="max-w-xl mx-auto p-6 space-y-6">
+    <PageShell>
+      <PageHero
+        badge="임대료 진단"
+        title="임대료 인상 진단기"
+        description="갱신 시 보증금·월세 인상이 법적 한도 안인지 확인해 보세요."
+      />
+      <div className="max-w-xl mx-auto space-y-6">
         {/* 유형 선택 및 금리 설정 섹션 (기존과 동일) */}
         <div className="flex bg-white p-1.5 rounded-[2rem] shadow-sm border border-gray-100">
           <button onClick={() => { setType('residential'); setResult(null); }}
@@ -198,7 +199,7 @@ export default function RentIncreasePage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 }

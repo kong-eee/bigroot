@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { notifyNavbarRefresh } from '@/lib/notifications-client';
+import PageHero from '@/app/components/layout/PageHero';
 
 const POSTS_PER_PAGE = 10;
 
@@ -232,8 +233,13 @@ function CommunityContent() {
   return (
     <div className="page-main flex flex-col items-center p-4 sm:p-6">
       <div className="w-full max-w-2xl space-y-6">
-        <div className="flex justify-between items-end w-full pb-2">
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">커뮤니티 광장</h2>
+        <PageHero
+          badge="커뮤니티"
+          title="커뮤니티 광장"
+          description="세입자들의 경험과 고민을 나누는 공간이에요."
+          showBrand={false}
+        />
+        <div className="flex justify-between items-end w-full pb-2 -mt-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             <button
               onClick={() => setSortBy('latest')}

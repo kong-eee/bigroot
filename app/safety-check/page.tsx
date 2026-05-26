@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { STATIC_SIDO_LIST } from '@/lib/korea-sido';
+import PageHero from '@/app/components/layout/PageHero';
 
 declare global {
   interface Window {
@@ -329,8 +330,7 @@ export default function SafetyCheckPage() {
     setResult(calcSafety(jeonseWon, limitWon));
   };
 
-  const selectClass =
-    'w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-bold text-sm text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed';
+  const selectClass = 'ui-select';
 
   return (
     <>
@@ -356,7 +356,7 @@ export default function SafetyCheckPage() {
                 setPropertyType('villa');
                 setResult(null);
               }}
-              className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${propertyType === 'villa' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+              className={`ui-tab ${propertyType === 'villa' ? 'ui-tab-active' : ''}`}
             >
               🏠 빌라/주택 (공시가 126%)
             </button>
@@ -365,13 +365,13 @@ export default function SafetyCheckPage() {
                 setPropertyType('officetel');
                 setResult(null);
               }}
-              className={`flex-1 py-4 text-sm font-black rounded-xl transition-all ${propertyType === 'officetel' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+              className={`ui-tab ${propertyType === 'officetel' ? 'ui-tab-active' : ''}`}
             >
               🏢 오피스텔 (KB시세 90%)
             </button>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 space-y-6">
+          <div className="ui-card p-6 sm:p-8 space-y-6">
             <div className="space-y-3">
               <label className="text-xs font-black text-slate-400 tracking-wide pl-1">
                 주소 선택 (시도 → 시군구 → 동)

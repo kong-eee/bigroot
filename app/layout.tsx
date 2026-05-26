@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
-import Navbar from './components/Navbar';
-import ThemeProvider from './components/ThemeProvider';
+import NavbarRouter from './components/NavbarRouter';
+import { ThemeProvider } from '@/lib/theme-context';
 import ThemeSwitcher from './components/ThemeSwitcher';
 
 const noto = Noto_Sans_KR({
@@ -14,7 +14,8 @@ const noto = Noto_Sans_KR({
 
 export const metadata: Metadata = {
   title: '빅루트 (BIGROOT) - 세입자의 든든한 뿌리',
-  description: '보증금과 권리를 단단하게 지켜드립니다.',
+  description:
+    '세입자의 든든한 뿌리, 든든한 길. BIG ROOT · BIG ROUTE — 보증금과 권리를 함께 지킵니다.',
 };
 
 export default function RootLayout({
@@ -26,7 +27,7 @@ export default function RootLayout({
     <html lang="ko" data-theme="refresh" suppressHydrationWarning>
       <body className={`${noto.variable} antialiased`}>
         <ThemeProvider>
-          <Navbar />
+          <NavbarRouter />
           {children}
           <ThemeSwitcher />
         </ThemeProvider>

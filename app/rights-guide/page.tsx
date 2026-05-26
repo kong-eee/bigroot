@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import PageHero from '@/app/components/layout/PageHero';
+import PageShell from '@/app/components/layout/PageShell';
 
 // --- 임차인 유형별 고충 기반 데이터 (네이버/구글 실무 사례 반영) ---
 const guideData = {
@@ -47,28 +49,22 @@ export default function RightsGuidePage() {
   const [activeTab, setActiveTab] = useState<keyof typeof guideData>('residential');
 
   return (
-    <div className="page-main pb-24">
-      {/* 고정 헤더 */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 p-5">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <Link href="/" className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all">←</Link>
-          <h1 className="text-xl font-black text-gray-900 tracking-tighter">임차인 권리 백과 🛡️</h1>
-        </div>
-      </header>
+    <PageShell>
+      <PageHero
+        badge="권리백과"
+        title="임차인 권리 백과"
+        description="주택·상가·사무실 유형별로 꼭 알아두면 좋은 권리를 정리했어요."
+      />
 
-      <main className="max-w-2xl mx-auto p-4 md:p-6 space-y-8">
+      <div className="space-y-8 max-w-2xl mx-auto">
         
         {/* 선택 탭: 3개 카테고리 균형 배치 */}
-        <div className="flex bg-white p-1.5 rounded-[2.5rem] shadow-sm border border-gray-100">
+        <div className="ui-tab-bar">
           {(Object.keys(guideData) as Array<keyof typeof guideData>).map((key) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex-1 py-4 rounded-[2rem] flex flex-col items-center gap-1 transition-all duration-300 ${
-                activeTab === key 
-                ? 'bg-blue-600 text-white shadow-xl shadow-blue-100' 
-                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`ui-tab flex flex-col items-center gap-1 ${activeTab === key ? 'ui-tab-active' : ''}`}
             >
               <span className="text-2xl">{guideData[key].icon}</span>
               <span className="text-[11px] font-black tracking-tight">{guideData[key].title}</span>
@@ -77,7 +73,7 @@ export default function RightsGuidePage() {
         </div>
 
         {/* 현재 탭 설명 배너 */}
-        <div className="bg-white p-8 rounded-[3rem] border border-gray-100 text-center space-y-2 shadow-sm">
+        <div className="ui-card p-8 text-center space-y-2">
           <h2 className="text-2xl font-black text-gray-900 tracking-tight">{guideData[activeTab].title} 가이드</h2>
           <p className="text-sm text-gray-500 font-bold leading-relaxed">
             {guideData[activeTab].description}
@@ -87,7 +83,7 @@ export default function RightsGuidePage() {
         {/* 핵심 리포트 리스트 */}
         <div className="space-y-4">
           {guideData[activeTab].items.map((item, i) => (
-            <div key={i} className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-gray-100 hover:border-blue-100 hover:shadow-md transition-all group">
+            <div key={i} className="ui-card p-6 hover:border-[var(--brand)] transition-all group">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0 text-blue-600 font-black text-sm">
                   Q
@@ -106,7 +102,7 @@ export default function RightsGuidePage() {
         </div>
 
         {/* 헬프 센터 연결 */}
-        <div className="relative overflow-hidden bg-gray-900 p-10 rounded-[3rem] text-white text-center">
+        <div className="relative overflow-hidden bg-[var(--text-primary)] p-8 sm:p-10 rounded-2xl text-white text-center">
           <div className="relative z-10 space-y-5">
             <h3 className="text-xl font-black tracking-tight leading-tight">
               {guideData[activeTab].title}님,<br/>더 자세한 상담이 필요하신가요?
@@ -114,16 +110,16 @@ export default function RightsGuidePage() {
             <p className="text-xs text-gray-400 font-bold opacity-80 leading-relaxed">
               빅루트 AI가 법률 데이터와 실제 판례를 바탕으로<br/>태근 님의 상황을 즉시 진단해 드립니다.
             </p>
-            <Link 
-              href="/legal-ai" 
-              className="inline-block w-full py-5 bg-blue-500 hover:bg-blue-400 text-white font-black rounded-[2rem] transition-all shadow-2xl shadow-blue-900/50 text-base"
+            <Link
+              href="/legal-ai"
+              className="ui-btn-primary inline-block w-full text-base"
             >
               실시간 AI 상담소 입장 🤖
             </Link>
           </div>
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 }

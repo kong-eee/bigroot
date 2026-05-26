@@ -146,3 +146,52 @@ body {
   border-color: var(--brand);
   box-shadow: 0 0 0 3px var(--brand-soft);
 }
+
+.ui-select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 1rem;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.ui-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+}
+
+.ui-tab {
+  flex: 1;
+  min-width: max-content;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.ui-tab-active {
+  background: var(--brand);
+  color: #fff;
+}
+
+.prose-brand {
+  color: var(--text-primary);
+}

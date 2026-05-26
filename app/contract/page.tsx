@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import PageHero from '@/app/components/layout/PageHero';
+import PageShell from '@/app/components/layout/PageShell';
 
 type BuildingType = 'all' | 'multiverse' | 'multiparent' | 'officetel' | 'commercial';
 
@@ -9,34 +10,21 @@ export default function ContractGuidePage() {
   const [activeTab, setActiveTab] = useState<BuildingType>('all');
 
   return (
-    <div className="page-main">
-      
-      {/* 🌐 상단 바 */}
-      <nav className="fixed top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-slate-100">
-        <div className="max-w-6xl mx-auto w-full px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-[1000] tracking-tighter text-slate-900">
-            BIG<span className="text-[#007AFF]">ROOT</span> <span className="text-slate-400 font-bold ml-1 text-sm">Guide</span>
-          </Link>
-          <Link href="/" className="text-sm font-black text-slate-500 hover:text-[#007AFF] transition-colors">메인 홈으로</Link>
-        </div>
-      </nav>
+    <PageShell wide>
+      <PageHero
+        badge="계약전 체크"
+        title={
+          <>
+            도장 찍기 직전,
+            <br />
+            <span className="text-[var(--brand)]">이것만큼은 꼭 알고 하자!</span>
+          </>
+        }
+        description="보증금을 지키는 첫걸음은 계약서 작성 전부터입니다. 건축물 유형별 체크리스트를 확인해 보세요."
+      />
 
-      {/* 🚀 히어로 섹션 */}
-      <header className="pt-40 pb-16 px-6 text-center max-w-3xl mx-auto space-y-4">
-        <div className="inline-block px-4 py-1.5 bg-blue-50 text-[#007AFF] rounded-full text-xs font-black tracking-wider uppercase">Contract Checklist</div>
-        <h1 className="text-4xl md:text-5xl font-[1000] text-slate-900 tracking-tight leading-tight">
-          도장 찍기 직전,<br />
-          <span className="text-[#007AFF]">이것만큼은 꼭 알고 하자!</span>
-        </h1>
-        <p className="text-slate-500 font-bold text-base md:text-lg leading-relaxed">
-          내 소중한 보증금을 지키는 첫걸음은 계약서 작성 전에 시작됩니다.<br className="hidden md:block"/>
-          건축물 유형별 실무 리포트와 필수 체크리스트 5가지를 확인하세요.
-        </p>
-      </header>
-
-      {/* 🗂️ 건축물 분류 탭 시스템 */}
-      <section className="max-w-5xl mx-auto px-6 mb-12">
-        <div className="flex bg-white border border-slate-200/80 rounded-3xl p-2 shadow-sm overflow-x-auto whitespace-nowrap scrollbar-hide gap-1">
+      <section className="mb-8">
+        <div className="ui-tab-bar">
           <TabButton active={activeTab === 'all'} onClick={() => setActiveTab('all')} label="🌏 공통 필수사항" />
           <TabButton active={activeTab === 'multiverse'} onClick={() => setActiveTab('multiverse')} label="🏢 다세대 (빌라/아파트)" />
           <TabButton active={activeTab === 'multiparent'} onClick={() => setActiveTab('multiparent')} label="🏡 다가구" />
@@ -45,9 +33,7 @@ export default function ContractGuidePage() {
         </div>
       </section>
 
-      {/* 📋 동적 체크리스트 메인 본문 */}
-      <main className="max-w-5xl mx-auto px-6 pb-32">
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 md:p-12 shadow-sm space-y-12 animate-in fade-in duration-300">
+      <div className="ui-card p-6 md:p-10 space-y-12">
           
           {/* 1️⃣ [공통 분류] - 5가지 항목 */}
           {(activeTab === 'all') && (
@@ -120,21 +106,13 @@ export default function ContractGuidePage() {
           )}
 
         </div>
-      </main>
-    </div>
+    </PageShell>
   );
 }
 
 function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
-    <button
-      onClick={onClick}
-      className={`flex-1 py-4 px-6 rounded-2xl font-black text-sm transition-all duration-300 ${
-        active 
-          ? 'bg-slate-900 text-white shadow-md' 
-          : 'bg-transparent text-slate-400 hover:text-slate-700 hover:bg-slate-50'
-      }`}
-    >
+    <button type="button" onClick={onClick} className={`ui-tab ${active ? 'ui-tab-active' : ''}`}>
       {label}
     </button>
   );
@@ -142,32 +120,32 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="border-b border-slate-100 pb-5 space-y-1.5">
-      <h3 className="text-2xl font-[1000] text-slate-900 tracking-tight">{title}</h3>
-      <p className="text-sm text-slate-400 font-bold leading-relaxed">{subtitle}</p>
+    <div className="border-b border-[var(--border)] pb-5 space-y-1.5">
+      <h3 className="text-xl sm:text-2xl font-black text-[var(--text-primary)]">{title}</h3>
+      <p className="text-sm text-[var(--text-secondary)] font-bold leading-relaxed">{subtitle}</p>
     </div>
   );
 }
 
 function Card({ icon, title, desc }: { icon: string; title: string; desc: string }) {
   return (
-    <div className="p-6 bg-slate-50 border border-slate-100/60 rounded-3xl space-y-3">
+    <div className="p-6 bg-[var(--bg-muted)] border border-[var(--border)] rounded-2xl space-y-3">
       <div className="text-2xl">{icon}</div>
-      <h4 className="font-black text-lg text-slate-900">{title}</h4>
-      <p className="text-xs text-slate-500 font-medium leading-relaxed">{desc}</p>
+      <h4 className="font-black text-lg text-[var(--text-primary)]">{title}</h4>
+      <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">{desc}</p>
     </div>
   );
 }
 
 function BulletRow({ num, title, desc }: { num: string; title: string; desc: string }) {
   return (
-    <div className="flex gap-4 p-5 rounded-2xl hover:bg-slate-50/70 transition-all">
-      <div className="w-7 h-7 bg-blue-50 text-[#007AFF] font-black text-sm rounded-full flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+    <div className="flex gap-4 p-5 rounded-2xl hover:bg-[var(--bg-muted)] transition-all">
+      <div className="w-7 h-7 bg-[var(--brand-soft)] text-[var(--brand)] font-black text-sm rounded-full flex items-center justify-center shrink-0 mt-0.5">
         {num}
       </div>
       <div className="space-y-1">
-        <h4 className="font-black text-slate-900 text-base">{title}</h4>
-        <p className="text-xs text-slate-500 font-medium leading-relaxed">{desc}</p>
+        <h4 className="font-black text-[var(--text-primary)] text-base">{title}</h4>
+        <p className="text-xs text-[var(--text-secondary)] font-medium leading-relaxed">{desc}</p>
       </div>
     </div>
   );

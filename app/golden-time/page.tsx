@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
+import PageHero from '@/app/components/layout/PageHero';
+import PageShell from '@/app/components/layout/PageShell';
 
 export default function GoldenTimePage() {
   const [activeTab, setActiveTab] = useState<'residential' | 'commercial'>('residential');
@@ -89,15 +91,13 @@ export default function GoldenTimePage() {
   };
 
   return (
-    <div className="page-main pb-24">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 p-5">
-        <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <Link href="/" className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all">←</Link>
-          <h1 className="text-xl font-black text-gray-900 tracking-tighter">권리 골든타임 ⏳</h1>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto p-4 md:p-6 space-y-8">
+    <PageShell>
+      <PageHero
+        badge="골든타임"
+        title="권리 골든타임"
+        description="갱신·통보·신고 등 놓치면 안 되는 날짜를 미리 챙겨 보세요."
+      />
+      <div className="max-w-2xl mx-auto space-y-8">
         
         {/* 1. 유형 선택 탭 */}
         <div className="flex bg-white p-1.5 rounded-[2.5rem] shadow-sm border border-gray-100">
@@ -186,7 +186,7 @@ export default function GoldenTimePage() {
           </div>
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
         </div>
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 }

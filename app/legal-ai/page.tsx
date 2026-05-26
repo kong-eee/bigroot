@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
 // 🚨 [필수] 마크다운 부품들을 가져오는 코드가 추가되었습니다.
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,6 +11,7 @@ import {
   formatLawTitles,
   type HousingLawArticle,
 } from '@/lib/legal-ai';
+import PageHero from '@/app/components/layout/PageHero';
 
 interface Message {
   id: number;
@@ -77,24 +77,23 @@ export default function LegalAIPage() {
   };
 
   return (
-    <div className="page-main flex flex-col">
-      <header className="p-6 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="hover:text-blue-600 transition-colors p-2 rounded-xl hover:bg-gray-100">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-          </Link>
-          <h1 className="text-xl font-extrabold tracking-tighter">근방 부동산 AI 🤖</h1>
-        </div>
-      </header>
+    <div className="page-main flex flex-col min-h-[calc(100vh-var(--nav-height))]">
+      <div className="page-container max-w-3xl w-full flex flex-col flex-1 min-h-0">
+      <PageHero
+        badge="근방 AI"
+        title="주택임대차보호법, 쉽게 물어보기"
+        description="조문을 바탕으로 안내해 드려요. 법률 자문이 아닌 정보 제공 서비스입니다."
+        showBrand={false}
+      />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 max-w-3xl mx-auto w-full">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4 space-y-6 min-h-0">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
             {/* --- 말풍선 박스 유지 --- */}
             <div className={`p-5 rounded-3xl shadow-sm max-w-[85%]
               ${msg.role === 'user' 
-                ? 'bg-blue-600 text-white rounded-br-none' 
-                : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}
+                ? 'bg-[var(--brand)] text-white rounded-br-none' 
+                : 'ui-card rounded-bl-none'}`}
             >
               {/* --- 마크다운 엔진 적용 부분 --- */}
               <div className={`prose prose-sm md:prose-base max-w-none 
@@ -121,30 +120,32 @@ export default function LegalAIPage() {
         )}
       </div>
 
-      <footer className="p-4 bg-white border-t border-gray-100 mt-auto">
-        <div className="max-w-3xl mx-auto space-y-4">
-          <div className="relative flex items-center bg-gray-100 p-2 rounded-3xl focus-within:ring-2 focus-within:ring-blue-500 transition-all shadow-inner">
-            <input 
-              type="text" 
-              value={input} 
-              onChange={(e) => setInput(e.target.value)} 
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              className="w-full p-4 bg-transparent outline-none text-gray-900"
+      <footer className="pt-4 border-t border-[var(--border)] mt-auto shrink-0">
+        <div className="space-y-3">
+          <div className="relative flex items-center bg-[var(--bg-muted)] p-2 rounded-2xl border border-[var(--border)]">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              className="ui-input border-0 bg-transparent shadow-none min-h-0"
               placeholder="질문을 입력하세요..."
             />
-            <button 
-              onClick={handleSend} 
-              className="absolute right-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 disabled:bg-gray-400" 
+            <button
+              type="button"
+              onClick={handleSend}
+              className="ui-btn-primary shrink-0 text-sm"
               disabled={isTyping}
             >
               전송
             </button>
           </div>
-          <p className="text-center text-xs text-gray-400">
-            법령 조문 기반 안내이며 법률 자문이 아닙니다. 중요한 사안은 전문기관에 확인하세요.
+          <p className="text-center text-xs text-[var(--text-muted)] font-medium">
+            법령 조문 기반 안내이며 법률 자문이 아닙니다.
           </p>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
