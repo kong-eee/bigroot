@@ -9,6 +9,7 @@ import {
   resolveVworldApiKey,
   resolveVworldDomain,
   vworldKeySetupHint,
+  vworldFetch,
 } from '@/lib/vworld';
 import {
   fetchVworldApartHousingPrices,
@@ -65,9 +66,7 @@ async function searchAddressPnu(
       page: '1',
     });
 
-    const res = await fetch(`https://api.vworld.kr/req/search?${params}`, {
-      cache: 'no-store',
-    });
+    const res = await vworldFetch(`https://api.vworld.kr/req/search?${params}`);
     const data = await parseVworldJson<Parameters<typeof parseSearchItems>[0]>(res);
     const item = parseSearchItems(data)?.[0];
     const pnu = item ? extractPnu(item) : null;
@@ -96,9 +95,7 @@ async function fetchCadastralFallback(
     attrFilter: `pnu:=:${pnu}`,
   });
 
-  const res = await fetch(`https://api.vworld.kr/req/data?${params}`, {
-    cache: 'no-store',
-  });
+  const res = await vworldFetch(`https://api.vworld.kr/req/data?${params}`);
   const json = await parseVworldJson<{
     response?: {
       result?: {

@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { STATIC_SIDO_LIST } from '@/lib/korea-sido';
 import {
   extractVworldError,
+  getVworldDomainCandidates,
   parseVworldJson,
   resolveVworldApiKey,
-  resolveVworldDomain,
   vworldKeySetupHint,
+  vworldFetch,
 } from '@/lib/vworld';
 
 type RegionType = 'sido' | 'sigungu' | 'dong';
@@ -49,53 +50,69 @@ async function fetchRegionsFromVworld(
   }
 
   const config = REGION_CONFIG[type];
-  const params = new URLSearchParams({
-    key: apiKey,
-    service: 'data',
-    request: 'GetFeature',
-    version: '2.0',
-    data: config.data,
-    domain: resolveVworldDomain(request),
-    format: 'json',
-    geometry: 'false',
-    attribute: 'true',
-    size: '1000',
-    page: '1',
-    attrFilter: `${config.filterAttr}:like:${parentCode}`,
-  });
+  const domainCandidates = getVworldDomainCandidates(request);
+  let lastError: Error | null = null;
 
-  const url = `https://api.vworld.kr/req/data?${params.toString()}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  });
+  for (const domain of domainCandidates) {
+    try {
+      const params = new URLSearchParams({
+        key: apiKey,
+        service: 'data',
+        request: 'GetFeature',
+        version: '2.0',
+        data: config.data,
+        domain,
+        format: 'json',
+        geometry: 'false',
+        attribute: 'true',
+        size: '1000',
+        page: '1',
+        attrFilter: `${config.filterAttr}:like:${parentCode}`,
+      });
 
-  const json = await parseVworldJson<{
-    response?: {
-      status?: string;
-      error?: { text?: string; message?: string };
-      result?: {
-        featureCollection?: {
-          features?: Array<{ properties?: Record<string, string> }>;
+      const url = `https://api.vworld.kr/req/data?${params.toString()}`;
+      const res = await vworldFetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const json = await parseVworldJson<{
+        response?: {
+          status?: string;
+          error?: { text?: string; message?: string };
+          result?: {
+            featureCollection?: {
+              features?: Array<{ properties?: Record<string, string> }>;
+            };
+          };
         };
-      };
-    };
-  }>(res);
+      }>(res);
 
-  const apiError = extractVworldError(json, request);
-  if (apiError) throw new Error(apiError);
+      const apiError = extractVworldError(json, request);
+      if (apiError) {
+        lastError = new Error(`${apiError} (domain: ${domain})`);
+        continue;
+      }
 
-  const features = json.response?.result?.featureCollection?.features ?? [];
-  const items: RegionItem[] = features
-    .map((f) => ({
-      code: f.properties?.[config.codeKey] ?? '',
-      name: f.properties?.[config.nameKey] ?? '',
-    }))
-    .filter((item) => item.code && item.name);
+      const features = json.response?.result?.featureCollection?.features ?? [];
+      const items: RegionItem[] = features
+        .map((f) => ({
+          code: f.properties?.[config.codeKey] ?? '',
+          name: f.properties?.[config.nameKey] ?? '',
+        }))
+        .filter((item) => item.code && item.name);
 
-  return items.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      if (items.length) {
+        return items.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+      }
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error : new Error('V-WORLD API 호출 실패');
+    }
+  }
+
+  throw lastError ?? new Error('행정구역 데이터를 불러오지 못했습니다.');
 }
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

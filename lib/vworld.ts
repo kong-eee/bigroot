@@ -1,30 +1,34 @@
 export function resolveVworldApiKey(): string | null {
-  const key = process.env.VWORLD_API_KEY?.trim();
-  if (key && key !== '여기에_V_WORLD_발급키_붙여넣기') return key;
+  const sanitize = (value?: string): string | null => {
+    if (!value) return null;
+    const cleaned = value.trim().replace(/^["']|["']$/g, '').replace(/\s/g, '');
+    if (!cleaned || cleaned === '여기에_V_WORLD_발급키_붙여넣기') return null;
+    return cleaned;
+  };
 
-  const legacy = process.env.NEXT_PUBLIC_DATA_GO_KR_KEY?.trim();
-  if (legacy && legacy !== '여기에_V_WORLD_발급키_붙여넣기') return legacy;
-
-  return null;
+  return sanitize(process.env.VWORLD_API_KEY) ?? sanitize(process.env.NEXT_PUBLIC_DATA_GO_KR_KEY);
 }
 
 export function vworldKeySetupHint(): string {
   if (process.env.VERCEL) {
     return (
-      'Vercel 대시보드 → Project → Settings → Environment Variables에 ' +
-      'VWORLD_API_KEY를 Production·Preview·Development 모두 추가한 뒤 재배포하세요.'
+      'Vercel → Settings → Environment Variables에 VWORLD_API_KEY를 추가하고 Redeploy 하세요.'
     );
   }
   return '.env.local에 VWORLD_API_KEY(브이월드 발급)를 설정하세요.';
 }
 
 function normalizeDomain(domain: string): string {
-  return domain.replace(/\/+$/, '');
+  const trimmed = domain.trim().replace(/\/+$/, '');
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
 }
 
 function isLocalhostDomain(domain: string): boolean {
   try {
-    const host = new URL(domain).hostname;
+    const host = new URL(normalizeDomain(domain)).hostname;
     return host === 'localhost' || host === '127.0.0.1';
   } catch {
     return domain.includes('localhost') || domain.startsWith('127.');
@@ -65,44 +69,75 @@ function getRequestOrigin(request: Request): string | null {
 function getVercelOrigin(): string | null {
   const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (production) {
-    const host = production.replace(/^https?:\/\//, '');
-    return normalizeDomain(`https://${host}`);
+    return normalizeDomain(production);
   }
 
   const preview = process.env.VERCEL_URL?.trim();
   if (preview) {
-    const host = preview.replace(/^https?:\/\//, '');
-    return normalizeDomain(`https://${host}`);
+    return normalizeDomain(preview);
   }
 
   return null;
 }
 
-/**
- * V-WORLD domain 파라미터 — 요청 출처 기준 자동 결정.
- * VWORLD_DOMAIN이 localhost인데 Vercel에서 실행 중이면 요청 origin을 사용합니다.
- */
-export function resolveVworldDomain(request: Request): string {
-  const requestOrigin = getRequestOrigin(request);
-  const configured = process.env.VWORLD_DOMAIN?.trim();
+/** Vercel 배포 환경에서 사용할 domain 후보 (우선순위 순) */
+export function getVworldDomainCandidates(request: Request): string[] {
+  const candidates: string[] = [];
+  const add = (value: string | null | undefined) => {
+    if (!value) return;
+    const normalized = normalizeDomain(value);
+    if (!candidates.includes(normalized)) candidates.push(normalized);
+  };
 
-  if (configured) {
-    const normalized = normalizeDomain(configured);
-    const onVercel = Boolean(process.env.VERCEL);
-    if (onVercel && isLocalhostDomain(normalized) && requestOrigin) {
-      return requestOrigin;
+  if (process.env.VERCEL) {
+    add(getVercelOrigin());
+    const requestOrigin = getRequestOrigin(request);
+    if (requestOrigin && !isLocalhostDomain(requestOrigin)) {
+      add(requestOrigin);
     }
-    if (!onVercel || !isLocalhostDomain(normalized)) {
-      return normalized;
-    }
+    return candidates.length
+      ? candidates
+      : [getRequestOrigin(request) ?? 'http://localhost:3000'];
   }
 
-  if (requestOrigin) return requestOrigin;
+  const configured = process.env.VWORLD_DOMAIN?.trim();
+  if (configured && !isLocalhostDomain(configured)) {
+    add(configured);
+  } else if (configured) {
+    add(configured);
+  }
 
-  const vercelOrigin = getVercelOrigin();
-  if (vercelOrigin) return vercelOrigin;
+  add(getRequestOrigin(request));
+  add(getVercelOrigin());
 
-  return 'http://localhost:3000';
+  if (!candidates.length) candidates.push('http://localhost:3000');
+  return candidates;
+}
+
+export function resolveVworldDomain(request: Request): string {
+  return getVworldDomainCandidates(request)[0];
+}
+
+export async function vworldFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, {
+      ...init,
+      cache: 'no-store',
+      signal: init?.signal ?? AbortSignal.timeout(8000),
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        throw new Error('V-WORLD API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
+      }
+      if (error.message === 'fetch failed') {
+        throw new Error(
+          'V-WORLD API 서버에 연결하지 못했습니다. Vercel 환경 변수와 브이월드 URL 등록을 확인하세요.'
+        );
+      }
+    }
+    throw error;
+  }
 }
 
 export async function parseVworldJson<T>(res: Response): Promise<T> {
@@ -112,10 +147,11 @@ export async function parseVworldJson<T>(res: Response): Promise<T> {
   if (text.startsWith('<')) {
     const messageMatch =
       text.match(/<message>([^<]*)<\/message>/i) ??
-      text.match(/<errmsg>([^<]*)<\/errmsg>/i);
+      text.match(/<errmsg>([^<]*)<\/errmsg>/i) ??
+      text.match(/<description>([^<]*)<\/description>/i);
     throw new Error(
       messageMatch?.[1]?.trim() ??
-        'V-WORLD API가 XML 오류를 반환했습니다. domain·format=json을 확인하세요.'
+        'V-WORLD API가 XML 오류를 반환했습니다. 브이월드에 배포 URL(https://bigroot.vercel.app)이 등록됐는지 확인하세요.'
     );
   }
 
@@ -140,16 +176,15 @@ export function extractVworldError(
     ? resolveVworldDomain(request)
     : process.env.VWORLD_DOMAIN ?? 'http://localhost:3000';
 
-  if (text?.includes('인증키')) {
+  if (text?.includes('인증키') || text?.includes('INCORRECT_KEY') || text?.includes('INVALID_KEY')) {
     return (
-      `${text} — 브이월드 개발자센터에 등록한 URL과 일치하는지 확인하세요. ` +
-      `(현재 domain: ${domainHint})`
+      `${text} — 브이월드 개발자센터 서비스 URL에 ${domainHint} 이 등록됐는지, ` +
+      'Vercel의 VWORLD_API_KEY가 로컬과 동일한지 확인하세요.'
     );
   }
   if (text?.toLowerCase().includes('domain')) {
     return (
-      `${text} — 브이월드 개발자센터 서비스 URL에 ` +
-      `${domainHint} (및 로컬용 http://localhost:3000)을 등록하세요.`
+      `${text} — 브이월드 개발자센터 서비스 URL에 ${domainHint} 을 등록하세요.`
     );
   }
   return text ?? 'V-WORLD API 요청에 실패했습니다.';

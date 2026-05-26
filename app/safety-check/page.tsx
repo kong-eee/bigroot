@@ -75,8 +75,26 @@ export default function SafetyCheckPage() {
 
   const fetchRegions = useCallback(async (type: 'sigungu' | 'dong', parent: string) => {
     const params = new URLSearchParams({ type, parent });
-    const res = await fetch(`/api/regions?${params.toString()}`);
-    const data = await res.json();
+    let res: Response;
+    try {
+      res = await fetch(`/api/regions?${params.toString()}`, {
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.name === 'TimeoutError'
+          ? '서버 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.'
+          : '서버에 연결하지 못했습니다. 배포 후 Redeploy가 필요할 수 있습니다.';
+      throw new Error(message);
+    }
+
+    let data: { success?: boolean; error?: string; regions?: RegionOption[] };
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`서버 응답 오류 (${res.status}). Vercel 재배포 후 다시 시도해 주세요.`);
+    }
+
     if (!res.ok || !data.success) {
       throw new Error(data.error || '행정구역 목록을 불러오지 못했습니다.');
     }

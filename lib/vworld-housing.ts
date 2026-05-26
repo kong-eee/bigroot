@@ -1,4 +1,4 @@
-import { parseVworldJson, resolveVworldApiKey, resolveVworldDomain } from '@/lib/vworld';
+import { parseVworldJson, resolveVworldApiKey, resolveVworldDomain, vworldFetch } from '@/lib/vworld';
 
 type NedHousingRecord = Record<string, string>;
 
@@ -30,7 +30,7 @@ async function fetchNedApartPage(
   });
 
   const url = `https://api.vworld.kr/ned/data/getApartHousingPriceAttr?${params}`;
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await vworldFetch(url);
   const json = await parseVworldJson<{
     apartHousingPrices?: {
       resultCode?: string;
