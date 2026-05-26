@@ -4,6 +4,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  fetchNotifications,
+  markNotificationsRead,
+  type AppNotification,
+} from '@/lib/notifications-client';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -20,55 +25,42 @@ export default function Navbar() {
   const [showModal, setShowModal] = useState(false);
 
   // 🔔 알림 관련 상태
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
 
   const notiContainerRef = useRef<HTMLDivElement>(null);
 
-  const fetchProfileAndNoti = useCallback(async (userId: string) => {
-    const { data: profile } = await supabase.from('profiles').select('nickname, gender').eq('id', userId).single();
-    if (profile) {
-      const dbNickname = profile.nickname || '';
-      setNickname(dbNickname);
-      setTempNickname(dbNickname);
-      setGender(profile.gender as '남성' | '여성' || null);
-    }
-    if (!profile?.nickname || !profile?.gender) {
-      setShowModal(true);
-    }
-
-    const { data: notis, error } = await supabase
-      .from('notifications')
-      .select(`
-        *,
-        actor:profiles!fk_noti_actor(nickname),
-        posts(title)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      const { data: fallback } = await supabase
-        .from('notifications')
-        .select('*, posts(title)')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (fallback) {
-        setNotifications(fallback);
-        setUnreadCount(fallback.filter((n: { is_read?: boolean }) => !n.is_read).length);
-      } else {
-        console.error('알림 불러오기 실패:', error.message);
-      }
-      return;
-    }
-
-    if (notis) {
-      setNotifications(notis);
-      setUnreadCount(notis.filter((n: { is_read?: boolean }) => !n.is_read).length);
+  const loadNotifications = useCallback(async () => {
+    try {
+      const { notifications: list, unreadCount: count } = await fetchNotifications();
+      setNotifications(list);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('알림 불러오기 실패:', error);
     }
   }, []);
+
+  const fetchProfileAndNoti = useCallback(
+    async (userId: string) => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nickname, gender')
+        .eq('id', userId)
+        .single();
+      if (profile) {
+        const dbNickname = profile.nickname || '';
+        setNickname(dbNickname);
+        setTempNickname(dbNickname);
+        setGender((profile.gender as '남성' | '여성') || null);
+      }
+      if (!profile?.nickname || !profile?.gender) {
+        setShowModal(true);
+      }
+      await loadNotifications();
+    },
+    [loadNotifications]
+  );
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -126,18 +118,35 @@ export default function Navbar() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchProfileAndNoti]);
+  }, [user, fetchProfileAndNoti, loadNotifications]);
+
+  // 15초마다 알림 폴링 (Realtime 보조)
+  useEffect(() => {
+    if (!user) return;
+    const interval = window.setInterval(() => loadNotifications(), 15000);
+    return () => window.clearInterval(interval);
+  }, [user, loadNotifications]);
+
+  // 커뮤니티 댓글/좋아요 후 즉시 갱신
+  useEffect(() => {
+    const onRefresh = () => loadNotifications();
+    window.addEventListener('bigroot:notifications-changed', onRefresh);
+    return () => window.removeEventListener('bigroot:notifications-changed', onRefresh);
+  }, [loadNotifications]);
 
   // 바깥 영역 클릭 시 닫힘
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notiContainerRef.current && !notiContainerRef.current.contains(event.target as Node)) {
-        setShowNotiDropdown(false);
+        if (showNotiDropdown) {
+          setShowNotiDropdown(false);
+          void markAllAsRead();
+        }
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showNotiDropdown]);
 
   const saveProfile = async () => {
     if (!tempNickname.trim()) return alert("닉네임을 입력해주세요!");
@@ -158,15 +167,22 @@ export default function Navbar() {
 
   const markAllAsRead = async () => {
     if (!user) return;
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    try {
+      await markNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('읽음 처리 실패:', error);
+    }
   };
 
   const openNotifications = async () => {
     const willOpen = !showNotiDropdown;
-    setShowNotiDropdown(willOpen);
     if (willOpen) {
+      await loadNotifications();
+      setShowNotiDropdown(true);
+    } else {
+      setShowNotiDropdown(false);
       await markAllAsRead();
     }
   };

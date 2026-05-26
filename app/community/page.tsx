@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import {
+  createNotification,
+  notifyNavbarRefresh,
+} from '@/lib/notifications-client';
 
 export default function CommunityPage() {
   const [user, setUser] = useState<any>(null);
@@ -106,16 +110,15 @@ export default function CommunityPage() {
   ) => {
     if (!user || !targetWriterId || targetWriterId === user.id) return;
 
-    const { error: notiError } = await supabase.from('notifications').insert({
-      user_id: targetWriterId,
-      actor_id: user.id,
-      post_id: postId,
-      type,
-      is_read: false,
-    });
-
-    if (notiError) {
-      console.error('알림 저장 실패:', notiError.message);
+    try {
+      await createNotification({
+        target_user_id: targetWriterId,
+        post_id: postId,
+        type,
+      });
+      notifyNavbarRefresh();
+    } catch (error) {
+      console.error('알림 저장 실패:', error);
     }
   };
 
