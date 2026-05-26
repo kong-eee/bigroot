@@ -10,6 +10,7 @@ type FeedbackRow = {
   title: string;
   content: string;
   is_public: boolean;
+  content_masked?: boolean;
   created_at: string;
   profiles?: { nickname: string | null } | null;
 };
@@ -53,20 +54,21 @@ export default function FeedbackPage() {
     setLoading(true);
     setLoadError(null);
 
-    const { data: rows, error } = await supabase
-      .from('feedback_requests')
-      .select('id, author_id, title, content, is_public, created_at')
-      .order('created_at', { ascending: false });
+    const { data: rows, error } = await supabase.rpc('list_feedback_requests');
 
     if (error) {
       console.error('문의 목록 로드 실패:', error.message, error);
-      setLoadError(error.message);
+      setLoadError(
+        error.message.includes('list_feedback_requests')
+          ? '목록 함수가 없습니다. Supabase에서 20260527300000_feedback_list_masked.sql 을 실행해 주세요.'
+          : error.message
+      );
       setItems([]);
       setLoading(false);
       return;
     }
 
-    const list = rows ?? [];
+    const list = (rows as Omit<FeedbackRow, 'profiles'>[]) ?? [];
     const authorIds = [...new Set(list.map((r) => r.author_id))];
     let nicknameById = new Map<string, string | null>();
 
@@ -233,8 +235,7 @@ export default function FeedbackPage() {
             </button>
           </div>
           <p className="text-xs text-slate-400 font-bold">
-            비공개는 작성자와 운영자만 볼 수 있어요. 전체공개는 다른 이용자도 목록에서 볼 수
-            있습니다.
+            비공개 글도 제목은 목록에 보이고, 내용은 작성자·운영자만 볼 수 있어요.
           </p>
         </div>
 
@@ -270,7 +271,7 @@ export default function FeedbackPage() {
             목록을 불러오지 못했습니다: {loadError}
             <br />
             <span className="text-slate-500 font-bold">
-              Supabase에서 20260527200000_feedback_rls_and_profiles_fk.sql 을 실행해 주세요.
+              Supabase에서 feedback 관련 migration SQL을 실행해 주세요.
             </span>
           </p>
         )}
@@ -307,7 +308,13 @@ export default function FeedbackPage() {
                     </span>
                   </div>
                   <h3 className="font-black text-slate-900">{row.title}</h3>
-                  <p className="text-sm text-slate-600 font-bold whitespace-pre-wrap leading-relaxed">
+                  <p
+                    className={`text-sm font-bold whitespace-pre-wrap leading-relaxed ${
+                      row.content_masked
+                        ? 'text-slate-400 italic bg-slate-50 rounded-xl px-4 py-3 border border-dashed border-slate-200'
+                        : 'text-slate-600'
+                    }`}
+                  >
                     {row.content}
                   </p>
                   {(isMine || isAdmin) && (
