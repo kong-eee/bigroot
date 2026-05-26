@@ -54,8 +54,13 @@ async function searchAddressPnu(
   queryAddress: string,
   domains: string[]
 ): Promise<{ item: VworldSearchItem; pnu: string } | null> {
-  for (const domain of domains) {
-    for (const category of ['parcel', 'road'] as const) {
+  const domainList = process.env.VERCEL ? domains.slice(0, 1) : domains;
+  const categories = process.env.VERCEL
+    ? (['parcel'] as const)
+    : (['parcel', 'road'] as const);
+
+  for (const domain of domainList) {
+    for (const category of categories) {
       const params = new URLSearchParams({
         key: apiKey,
         domain,
@@ -191,65 +196,79 @@ export async function GET(request: Request) {
     }
     let buildingName = item?.address?.bldnm || '';
 
-    const uniqueRooms: VworldRoom[] = [];
-    const seen = new Set<string>();
+    const collectRooms = async (targetPnu: string): Promise<VworldRoom[]> => {
+      const rooms: VworldRoom[] = [];
+      const seenIds = new Set<string>();
 
-    const addRoom = (mapped: {
-      dong: string;
-      ho: string;
-      area: string | number;
-      price: number;
-      buildingName?: string;
-    }) => {
-      if (!buildingName && mapped.buildingName) buildingName = mapped.buildingName;
-      const uniqueId = `${mapped.dong}_${mapped.ho}`;
-      if (!seen.has(uniqueId) && mapped.price > 0) {
-        seen.add(uniqueId);
-        uniqueRooms.push({
-          id: uniqueId,
-          dong: mapped.dong,
-          ho: mapped.ho,
-          area: mapped.area,
-          price: mapped.price,
-        });
+      const addRoom = (mapped: {
+        dong: string;
+        ho: string;
+        area: string | number;
+        price: number;
+        buildingName?: string;
+      }) => {
+        if (!buildingName && mapped.buildingName) buildingName = mapped.buildingName;
+        const uniqueId = `${mapped.dong}_${mapped.ho}`;
+        if (!seenIds.has(uniqueId) && mapped.price > 0) {
+          seenIds.add(uniqueId);
+          rooms.push({
+            id: uniqueId,
+            dong: mapped.dong,
+            ho: mapped.ho,
+            area: mapped.area,
+            price: mapped.price,
+          });
+        }
+      };
+
+      const vworldRooms = await fetchVworldApartHousingPrices(request, targetPnu);
+      for (const record of vworldRooms) {
+        addRoom(mapVworldHousingRecord(record));
       }
+
+      if (!rooms.length && resolveDataGoKrKey()) {
+        const housing = await fetchHousingPriceRecords(targetPnu);
+        if (housing?.records.length) {
+          for (const record of housing.records) {
+            addRoom(mapHousingRecord(record));
+          }
+        }
+      }
+
+      if (!rooms.length) {
+        const domainList = process.env.VERCEL ? domains.slice(0, 1) : domains;
+        for (const domain of domainList) {
+          try {
+            const fallback = await fetchCadastralFallback(vworldKey, domain, targetPnu);
+            if (fallback) {
+              rooms.push(fallback);
+              break;
+            }
+          } catch {
+            /* try next domain */
+          }
+        }
+      }
+
+      return rooms;
     };
 
-    // 1) V-WORLD NED 공동주택 공시가격 (기존 VWORLD_API_KEY로 호실 조회 가능)
-    const vworldRooms = await fetchVworldApartHousingPrices(request, pnu);
-    for (const record of vworldRooms) {
-      addRoom(mapVworldHousingRecord(record));
-    }
+    let uniqueRooms = await collectRooms(pnu);
 
-    // 2) 공공데이터포털 키가 있으면 보조 조회
-    if (!uniqueRooms.length && resolveDataGoKrKey()) {
-      const housing = await fetchHousingPriceRecords(pnu);
-      if (housing?.records.length) {
-        for (const record of housing.records) {
-          addRoom(mapHousingRecord(record));
-        }
-      }
-    }
-
-    // 3) 호실 데이터 없을 때만 필지 공시지가 참고값
-    if (!uniqueRooms.length) {
-      for (const domain of domains) {
-        try {
-          const fallback = await fetchCadastralFallback(vworldKey, domain, pnu);
-          if (fallback) {
-            uniqueRooms.push(fallback);
-            if (!buildingName) {
-              buildingName = String(item?.address?.bldnm || item?.address?.pnu || '해당 필지');
-            }
-            break;
-          }
-        } catch {
-          /* try next domain */
-        }
+    if (!uniqueRooms.length && queryAddress) {
+      const found = await searchAddressPnu(vworldKey, queryAddress, domains);
+      if (found && found.pnu !== pnu) {
+        pnu = found.pnu;
+        item = found.item;
+        if (item?.address?.bldnm) buildingName = item.address.bldnm;
+        uniqueRooms = await collectRooms(pnu);
       }
     }
 
     if (!uniqueRooms.length) {
+      if (!buildingName && item?.address?.pnu) {
+        buildingName = String(item.address.pnu);
+      }
       return NextResponse.json(
         {
           success: false,
