@@ -9,8 +9,8 @@ alter table public.profiles
 create table if not exists public.feedback_requests (
   id uuid primary key default gen_random_uuid(),
   author_id uuid not null references auth.users (id) on delete cascade,
-  title text not null check (char_length(trim(title)) >= 2),
-  content text not null check (char_length(trim(content)) >= 5),
+  title text not null check (char_length(trim(title)) >= 1),
+  content text not null check (char_length(trim(content)) >= 2),
   is_public boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

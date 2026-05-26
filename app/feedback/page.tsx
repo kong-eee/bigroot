@@ -104,17 +104,32 @@ export default function FeedbackPage() {
 
   const handleSubmit = async () => {
     if (!isAllowed || !user) return alert('로그인 후 닉네임을 설정해야 글을 쓸 수 있어요.');
-    if (!title.trim() || !content.trim()) return alert('제목과 내용을 입력해 주세요.');
+
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    if (!trimmedTitle) return alert('제목을 입력해 주세요.');
+    if (trimmedContent.length < 2) {
+      return alert('내용을 2자 이상 입력해 주세요. (이전 DB 설정은 5자 이상이었을 수 있어요)');
+    }
 
     const { error } = await supabase.from('feedback_requests').insert({
       author_id: user.id,
-      title: title.trim(),
-      content: content.trim(),
+      title: trimmedTitle,
+      content: trimmedContent,
       is_public: isPublic,
     });
 
     if (error) {
-      alert(`등록 실패: ${error.message}`);
+      if (
+        error.code === '23514' &&
+        error.message.includes('feedback_requests_content_check')
+      ) {
+        alert(
+          '내용이 너무 짧아요. 2자 이상 입력해 주세요.\n\nSupabase에서 migrations/20260527100000_feedback_constraints_relax.sql 을 실행하면 해결됩니다.'
+        );
+      } else {
+        alert(`등록 실패: ${error.message}`);
+      }
       return;
     }
 
