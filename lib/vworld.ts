@@ -119,25 +119,40 @@ export function resolveVworldDomain(request: Request): string {
 }
 
 export async function vworldFetch(url: string, init?: RequestInit): Promise<Response> {
-  try {
-    return await fetch(url, {
-      ...init,
-      cache: 'no-store',
-      signal: init?.signal ?? AbortSignal.timeout(8000),
-    });
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        throw new Error('V-WORLD API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
-      }
-      if (error.message === 'fetch failed') {
-        throw new Error(
-          'V-WORLD API 서버에 연결하지 못했습니다. Vercel 환경 변수와 브이월드 URL 등록을 확인하세요.'
-        );
-      }
-    }
-    throw error;
+  const bases = [url];
+  if (url.startsWith('https://api.vworld.kr')) {
+    bases.push(url.replace('https://api.vworld.kr', 'http://api.vworld.kr'));
   }
+
+  let lastError: unknown;
+  for (const targetUrl of bases) {
+    try {
+      return await fetch(targetUrl, {
+        ...init,
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'BIGROOT/1.0',
+          ...(init?.headers ?? {}),
+        },
+        signal: init?.signal ?? AbortSignal.timeout(12000),
+      });
+    } catch (error: unknown) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof Error) {
+    if (lastError.name === 'TimeoutError' || lastError.name === 'AbortError') {
+      throw new Error('V-WORLD API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.');
+    }
+    if (lastError.message === 'fetch failed') {
+      throw new Error(
+        'V-WORLD API 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+      );
+    }
+  }
+  throw lastError;
 }
 
 export async function parseVworldJson<T>(res: Response): Promise<T> {
@@ -151,7 +166,7 @@ export async function parseVworldJson<T>(res: Response): Promise<T> {
       text.match(/<description>([^<]*)<\/description>/i);
     throw new Error(
       messageMatch?.[1]?.trim() ??
-        'V-WORLD API가 XML 오류를 반환했습니다. 브이월드에 배포 URL(https://bigroot.vercel.app)이 등록됐는지 확인하세요.'
+        'V-WORLD API가 XML 오류를 반환했습니다. 브이월드 개발자센터에 배포 URL이 등록됐는지 확인하세요.'
     );
   }
 

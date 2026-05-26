@@ -5,9 +5,9 @@ import {
   resolveDataGoKrKey,
 } from '@/lib/data-go-kr';
 import {
+  getVworldDomainCandidates,
   parseVworldJson,
   resolveVworldApiKey,
-  resolveVworldDomain,
   vworldKeySetupHint,
   vworldFetch,
 } from '@/lib/vworld';
@@ -50,27 +50,35 @@ function parseSearchItems(data: {
 
 async function searchAddressPnu(
   apiKey: string,
-  queryAddress: string
+  queryAddress: string,
+  domains: string[]
 ): Promise<{ item: VworldSearchItem; pnu: string } | null> {
-  for (const category of ['parcel', 'road'] as const) {
-    const params = new URLSearchParams({
-      key: apiKey,
-      service: 'search',
-      request: 'search',
-      version: '2.0',
-      query: queryAddress,
-      type: 'address',
-      category,
-      format: 'json',
-      size: '10',
-      page: '1',
-    });
+  for (const domain of domains) {
+    for (const category of ['parcel', 'road'] as const) {
+      const params = new URLSearchParams({
+        key: apiKey,
+        domain,
+        service: 'search',
+        request: 'search',
+        version: '2.0',
+        query: queryAddress,
+        type: 'address',
+        category,
+        format: 'json',
+        size: '10',
+        page: '1',
+      });
 
-    const res = await vworldFetch(`https://api.vworld.kr/req/search?${params}`);
-    const data = await parseVworldJson<Parameters<typeof parseSearchItems>[0]>(res);
-    const item = parseSearchItems(data)?.[0];
-    const pnu = item ? extractPnu(item) : null;
-    if (item && pnu) return { item, pnu };
+      try {
+        const res = await vworldFetch(`https://api.vworld.kr/req/search?${params}`);
+        const data = await parseVworldJson<Parameters<typeof parseSearchItems>[0]>(res);
+        const item = parseSearchItems(data)?.[0];
+        const pnu = item ? extractPnu(item) : null;
+        if (item && pnu) return { item, pnu };
+      } catch {
+        /* try next domain/category */
+      }
+    }
   }
   return null;
 }
@@ -119,6 +127,9 @@ async function fetchCadastralFallback(
   };
 }
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
@@ -142,10 +153,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const domain = resolveVworldDomain(request);
+    const domains = getVworldDomainCandidates(request);
     const queryAddress = address.trim();
 
-    const found = await searchAddressPnu(vworldKey, queryAddress);
+    const found = await searchAddressPnu(vworldKey, queryAddress, domains);
     if (!found) {
       return NextResponse.json(
         {
@@ -201,10 +212,19 @@ export async function GET(request: Request) {
 
     // 3) 호실 데이터 없을 때만 필지 공시지가 참고값
     if (!uniqueRooms.length) {
-      const fallback = await fetchCadastralFallback(vworldKey, domain, pnu);
-      if (fallback) {
-        uniqueRooms.push(fallback);
-        if (!buildingName) buildingName = String(item.address?.bldnm || item.address?.pnu || '해당 필지');
+      for (const domain of domains) {
+        try {
+          const fallback = await fetchCadastralFallback(vworldKey, domain, pnu);
+          if (fallback) {
+            uniqueRooms.push(fallback);
+            if (!buildingName) {
+              buildingName = String(item.address?.bldnm || item.address?.pnu || '해당 필지');
+            }
+            break;
+          }
+        } catch {
+          /* try next domain */
+        }
       }
     }
 

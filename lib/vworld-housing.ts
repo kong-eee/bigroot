@@ -1,4 +1,9 @@
-import { parseVworldJson, resolveVworldApiKey, resolveVworldDomain, vworldFetch } from '@/lib/vworld';
+import {
+  getVworldDomainCandidates,
+  parseVworldJson,
+  resolveVworldApiKey,
+  vworldFetch,
+} from '@/lib/vworld';
 
 type NedHousingRecord = Record<string, string>;
 
@@ -14,14 +19,15 @@ async function fetchNedApartPage(
   request: Request,
   pnu: string,
   stdrYear: number,
-  pageNo: number
+  pageNo: number,
+  domain: string
 ): Promise<NedHousingRecord[]> {
   const apiKey = resolveVworldApiKey();
   if (!apiKey) return [];
 
   const params = new URLSearchParams({
     key: apiKey,
-    domain: resolveVworldDomain(request),
+    domain,
     pnu,
     format: 'json',
     stdrYear: String(stdrYear),
@@ -44,7 +50,7 @@ async function fetchNedApartPage(
   if (!root) return [];
 
   if (root.resultCode && root.resultCode !== '00') {
-    if (root.resultCode === '03') return []; // no data
+    if (root.resultCode === '03') return [];
     throw new Error(root.resultMsg ?? 'V-WORLD 공동주택 공시가격 조회 실패');
   }
 
@@ -55,18 +61,25 @@ export async function fetchVworldApartHousingPrices(
   request: Request,
   pnu: string
 ): Promise<NedHousingRecord[]> {
+  const domains = getVworldDomainCandidates(request);
   const year = new Date().getFullYear();
   const years = [year, year - 1, year - 2];
 
   for (const stdrYear of years) {
     const all: NedHousingRecord[] = [];
-    for (let page = 1; page <= 10; page++) {
-      const batch = await fetchNedApartPage(request, pnu, stdrYear, page);
-      if (!batch.length) break;
-      all.push(...batch);
-      if (batch.length < 1000) break;
+    for (const domain of domains) {
+      try {
+        for (let page = 1; page <= 10; page++) {
+          const batch = await fetchNedApartPage(request, pnu, stdrYear, page, domain);
+          if (!batch.length) break;
+          all.push(...batch);
+          if (batch.length < 1000) break;
+        }
+        if (all.length) return all;
+      } catch {
+        /* try next domain */
+      }
     }
-    if (all.length) return all;
   }
 
   return [];
