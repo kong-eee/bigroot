@@ -3,10 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import {
-  createNotification,
-  notifyNavbarRefresh,
-} from '@/lib/notifications-client';
+import { notifyNavbarRefresh } from '@/lib/notifications-client';
 
 export default function CommunityPage() {
   const [user, setUser] = useState<any>(null);
@@ -103,36 +100,15 @@ export default function CommunityPage() {
     }
   };
 
-  const sendNotification = async (
-    targetWriterId: string | undefined,
-    postId: string,
-    type: 'comment' | 'like'
-  ) => {
-    if (!user || !targetWriterId || targetWriterId === user.id) return;
-
-    try {
-      await createNotification({
-        target_user_id: targetWriterId,
-        post_id: postId,
-        type,
-      });
-      notifyNavbarRefresh();
-    } catch (error) {
-      console.error('알림 저장 실패:', error);
-    }
-  };
-
   const toggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
     if (!user) return alert('로그인이 필요합니다.');
-
-    const targetWriterId = post.author_id;
 
     if (post.is_liked) {
       await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
     } else {
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
-      await sendNotification(targetWriterId, post.id, 'like');
+      notifyNavbarRefresh();
     }
     fetchPosts();
   };
@@ -149,7 +125,7 @@ export default function CommunityPage() {
     if (error) {
       alert(`답글 등록 실패: ${error.message}`);
     } else {
-      await sendNotification(post.author_id, post.id, 'comment');
+      notifyNavbarRefresh();
       setCommentContent('');
       fetchPosts();
     }
