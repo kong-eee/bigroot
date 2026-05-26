@@ -43,10 +43,13 @@ async function fetchNsdiPage(
   }
 
   const json = JSON.parse(text) as Record<string, unknown>;
+  const response = json.response as
+    | { body?: unknown; header?: { resultCode?: string; resultMsg?: string } }
+    | undefined;
   const root =
     json.apartHousingPrices ??
     json.indvdHousingPrices ??
-    json.response?.body ??
+    response?.body ??
     json;
 
   if (typeof root !== 'object' || root === null) return [];
@@ -128,13 +131,17 @@ export function mapHousingRecord(record: HousingRecord) {
       0
   );
 
-  const area =
+  const areaRaw =
     record.prvuseAr ??
     record.prvuse_ar ??
     record.houseAr ??
     record.house_ar ??
-    record.totar ??
-    '';
+    record.totar;
+
+  let area: string | number = '';
+  if (areaRaw != null && areaRaw !== '') {
+    area = typeof areaRaw === 'number' ? areaRaw : String(areaRaw);
+  }
 
   return {
     dong,
