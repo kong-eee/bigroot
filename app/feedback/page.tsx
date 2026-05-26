@@ -14,6 +14,26 @@ type FeedbackRow = {
   profiles?: { nickname: string | null } | null;
 };
 
+function normalizeFeedbackRows(data: unknown): FeedbackRow[] {
+  if (!Array.isArray(data)) return [];
+  return data.map((row) => {
+    const r = row as Record<string, unknown>;
+    const rawProfile = r.profiles;
+    const profile = Array.isArray(rawProfile)
+      ? (rawProfile[0] as { nickname: string | null } | undefined)
+      : (rawProfile as { nickname: string | null } | null | undefined);
+    return {
+      id: String(r.id),
+      author_id: String(r.author_id),
+      title: String(r.title),
+      content: String(r.content),
+      is_public: Boolean(r.is_public),
+      created_at: String(r.created_at),
+      profiles: profile ?? null,
+    };
+  });
+}
+
 export default function FeedbackPage() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [profile, setProfile] = useState<{
@@ -64,7 +84,7 @@ export default function FeedbackPage() {
       }
       setItems([]);
     } else {
-      setItems((data as FeedbackRow[]) ?? []);
+      setItems(normalizeFeedbackRows(data));
     }
     setLoading(false);
   }, []);
