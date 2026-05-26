@@ -5,6 +5,7 @@ import {
   parseVworldJson,
   resolveVworldApiKey,
   resolveVworldDomain,
+  vworldKeySetupHint,
 } from '@/lib/vworld';
 
 type RegionType = 'sido' | 'sigungu' | 'dong';
@@ -44,9 +45,7 @@ async function fetchRegionsFromVworld(
 ): Promise<RegionItem[]> {
   const apiKey = resolveVworldApiKey();
   if (!apiKey) {
-    throw new Error(
-      'V-WORLD API 키가 없습니다. .env.local에 VWORLD_API_KEY(브이월드 발급)를 설정하세요.'
-    );
+    throw new Error(`V-WORLD API 키가 없습니다. ${vworldKeySetupHint()}`);
   }
 
   const config = REGION_CONFIG[type];
@@ -84,7 +83,7 @@ async function fetchRegionsFromVworld(
     };
   }>(res);
 
-  const apiError = extractVworldError(json);
+  const apiError = extractVworldError(json, request);
   if (apiError) throw new Error(apiError);
 
   const features = json.response?.result?.featureCollection?.features ?? [];

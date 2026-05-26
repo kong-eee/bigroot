@@ -8,6 +8,7 @@ import {
   parseVworldJson,
   resolveVworldApiKey,
   resolveVworldDomain,
+  vworldKeySetupHint,
 } from '@/lib/vworld';
 import {
   fetchVworldApartHousingPrices,
@@ -138,7 +139,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: '.env.local에 VWORLD_API_KEY를 설정하세요.',
+          error: `V-WORLD API 키가 없습니다. ${vworldKeySetupHint()}`,
         },
         { status: 500 }
       );
