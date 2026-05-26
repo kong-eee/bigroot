@@ -165,17 +165,17 @@ export async function GET(request: Request) {
     let item: VworldSearchItem | null = null;
     let pnu: string | null = null;
 
-    if (queryAddress) {
+    if (dongCode && jibun) {
+      pnu = buildPnu(dongCode, jibun);
+      if (pnu) item = { address: { pnu } };
+    }
+
+    if (!pnu && queryAddress) {
       const found = await searchAddressPnu(vworldKey, queryAddress, domains);
       if (found) {
         item = found.item;
         pnu = found.pnu;
       }
-    }
-
-    if (!pnu && dongCode && jibun) {
-      pnu = buildPnu(dongCode, jibun);
-      if (pnu && !item) item = { address: { pnu } };
     }
 
     if (!pnu) {
@@ -253,10 +253,12 @@ export async function GET(request: Request) {
 
     let { rooms: uniqueRooms, authFailed } = await collectRooms(pnu);
 
-    if (!uniqueRooms.length && dongCode && jibun) {
-      const builtPnu = buildPnu(dongCode, jibun);
-      if (builtPnu && builtPnu !== pnu) {
-        pnu = builtPnu;
+    if (!uniqueRooms.length && queryAddress) {
+      const found = await searchAddressPnu(vworldKey, queryAddress, domains);
+      if (found && found.pnu !== pnu) {
+        pnu = found.pnu;
+        item = found.item;
+        if (item?.address?.bldnm) buildingName = item.address.bldnm;
         const retry = await collectRooms(pnu);
         uniqueRooms = retry.rooms;
         authFailed = retry.authFailed;

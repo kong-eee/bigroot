@@ -1,6 +1,5 @@
 import {
   getVworldApiDomainCandidates,
-  parseVworldJson,
   resolveVworldApiKey,
   vworldFetch,
 } from '@/lib/vworld';
@@ -62,7 +61,16 @@ async function fetchNedPage(
 
   const url = `https://api.vworld.kr/ned/data/${endpoint}?${params}`;
   const res = await vworldFetch(url);
-  const json = await parseVworldJson<Record<string, unknown>>(res);
+  const text = (await res.text()).trim();
+
+  if (text.includes('INCORRECT_KEY') || text.includes('인증키 정보')) {
+    return { records: [], authError: true };
+  }
+  if (!text.startsWith('{')) {
+    throw new Error('V-WORLD NED API 응답 형식 오류');
+  }
+
+  const json = JSON.parse(text) as Record<string, unknown>;
   const root = extractNedRoot(json, responseKey);
   if (!root) return { records: [], authError: false };
 
