@@ -1,10 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 import { GEMINI_KEY_ENV_NAME, getGeminiApiKey } from "@/lib/gemini-env";
+import lawData from "@/data/housing_law.json";
 import {
   buildLegalAiPrompt,
+  formatLawTitles,
   LEGAL_AI_MAX_OUTPUT_TOKENS,
+  resolveLawContext,
   sanitizeLegalAiResponse,
+  type HousingLawArticle,
 } from "@/lib/legal-ai";
 
 export async function POST(request: Request) {
@@ -24,17 +28,24 @@ export async function POST(request: Request) {
   try {
     const { query, lawExcerpt } = await request.json();
     const q = typeof query === "string" ? query.trim() : "";
-    const excerpt = typeof lawExcerpt === "string" ? lawExcerpt.trim() : "";
+    const clientExcerpt = typeof lawExcerpt === "string" ? lawExcerpt : "";
 
     if (!q) {
       return NextResponse.json({ error: "질문이 비어 있습니다." }, { status: 400 });
     }
 
+    const { excerpt, laws } = resolveLawContext(
+      q,
+      lawData as HousingLawArticle[],
+      clientExcerpt
+    );
+
     if (!excerpt) {
       return NextResponse.json({
         text:
-          "질문과 관련된 조문을 찾지 못했어요. ‘갱신’, ‘보증금’, ‘퇴실 통보’처럼 조금 더 구체적으로 다시 물어봐 주세요. (법령 JSON 기준으로만 안내해요)",
+          "관련 조문을 찾기 어려워요. ‘보증금 반환’, ‘월세 인상’, ‘퇴실 통보’처럼 상황을 한 줄 더 적어 주시면 조문을 읽고 답해 드릴게요.",
         skippedApi: true,
+        lawRefs: [],
       });
     }
 
@@ -61,7 +72,9 @@ export async function POST(request: Request) {
 
     // 신형 SDK는 response.text()가 아니라 .text 속성을 바로 사용합니다.
     const raw = response.text ?? "";
-    return NextResponse.json({ text: sanitizeLegalAiResponse(raw) || raw });
+    const text = sanitizeLegalAiResponse(raw) || raw;
+    const lawRefs = laws.length > 0 ? formatLawTitles(laws) : undefined;
+    return NextResponse.json({ text, lawRefs });
 
   } catch (error: any) {
     console.error("🚨 가이드 기반 최종 에러:", error.message);

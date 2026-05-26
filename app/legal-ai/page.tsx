@@ -42,7 +42,7 @@ export default function LegalAIPage() {
     setIsTyping(true);
     const foundLaws = findRelevantLaws(userQuery, lawData as HousingLawArticle[]);
     let aiResponse = "";
-    const lawTitle = foundLaws.length > 0 ? formatLawTitles(foundLaws) : undefined;
+    let lawTitle = foundLaws.length > 0 ? formatLawTitles(foundLaws) : undefined;
     const lawExcerpt = foundLaws.length > 0 ? formatLawExcerpt(foundLaws) : "";
     try {
       const response = await fetch('/api/gemini', {
@@ -56,6 +56,7 @@ export default function LegalAIPage() {
       const data = await response.json();
       if (response.ok) {
         aiResponse = data.text ?? "응답을 받지 못했습니다.";
+        if (data.lawRefs) lawTitle = data.lawRefs;
       } else if (data.error === "GEMINI_KEY_NOT_CONFIGURED") {
         aiResponse =
           data.message ??
