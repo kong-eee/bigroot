@@ -1,6 +1,7 @@
 /** Gemini 입력·과금 절감용 상수 */
 export const LEGAL_AI_MAX_LAW_CHARS = 3_200;
-export const LEGAL_AI_MAX_OUTPUT_TOKENS = 1_000;
+/** 한글은 토큰 소모가 커서 1000이면 문장 중간에 잘림 → 2048 권장 */
+export const LEGAL_AI_MAX_OUTPUT_TOKENS = 2_048;
 export const LEGAL_AI_MAX_ARTICLES = 3;
 
 export type HousingLawArticle = {
@@ -200,7 +201,8 @@ export const LEGAL_AI_SYSTEM_RULES = `역할: 주택임대차보호법 조문을
 - [법령 발췌]를 꼼꼼히 읽고 질문(언제 퇴실, 만기일 퇴실 가능 여부 등)에 직접 답하세요.
 - 발췌에 근거가 있으면 "불가능" "가능" "○개월 전 통지" 등을 분명히 말하세요.
 - 발췌에 없는 세부만 "조문만으로는 확실히 어렵다"고 하세요.
-- 600자 안팎, 번호 목록 가능. 마지막 한 줄: ※ 정보 안내이며, 중요한 결정은 주민센터·법률구조공단(132)에 확인하세요.`;
+- 질문에 여러 쟁점(예: 묵시적 갱신, 퇴실 시점, 만기일 퇴실)이 있으면 번호 목록으로 빠짐없이 답하고, 문장을 중간에 끊지 말고 끝까지 완결하세요.
+- 마지막 한 줄: ※ 정보 안내이며, 중요한 결정은 주민센터·법률구조공단(132)에 확인하세요.`;
 
 export function sanitizeLegalAiResponse(text: string): string {
   return text

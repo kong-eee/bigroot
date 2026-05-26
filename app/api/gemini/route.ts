@@ -72,7 +72,13 @@ export async function POST(request: Request) {
 
     // 신형 SDK는 response.text()가 아니라 .text 속성을 바로 사용합니다.
     const raw = response.text ?? "";
-    const text = sanitizeLegalAiResponse(raw) || raw;
+    let text = sanitizeLegalAiResponse(raw) || raw;
+
+    const finishReason = response.candidates?.[0]?.finishReason;
+    if (finishReason === "MAX_TOKENS" && text.length > 0) {
+      text += "\n\n_(답변이 길어 일부만 표시됐을 수 있어요. 더 궁금한 점을 이어서 질문해 주세요.)_";
+    }
+
     const lawRefs = laws.length > 0 ? formatLawTitles(laws) : undefined;
     return NextResponse.json({ text, lawRefs });
 
