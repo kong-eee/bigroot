@@ -12,8 +12,7 @@ import {
   vworldFetch,
 } from '@/lib/vworld';
 import {
-  fetchVworldApartHousingPrices,
-  fetchVworldIndvdHousingPrices,
+  fetchVworldHousingWithMeta,
   mapVworldHousingRecord,
 } from '@/lib/vworld-housing';
 import { buildPnu } from '@/lib/pnu';
@@ -191,7 +190,9 @@ export async function GET(request: Request) {
     }
     let buildingName = item?.address?.bldnm || '';
 
-    const collectRooms = async (targetPnu: string): Promise<VworldRoom[]> => {
+    const collectRooms = async (
+      targetPnu: string
+    ): Promise<{ rooms: VworldRoom[]; authFailed: boolean }> => {
       const rooms: VworldRoom[] = [];
       const seenIds = new Set<string>();
 
@@ -216,16 +217,12 @@ export async function GET(request: Request) {
         }
       };
 
-      const vworldRooms = await fetchVworldApartHousingPrices(request, targetPnu);
-      for (const record of vworldRooms) {
+      const { records: vworldRecords, authFailed } = await fetchVworldHousingWithMeta(
+        request,
+        targetPnu
+      );
+      for (const record of vworldRecords) {
         addRoom(mapVworldHousingRecord(record));
-      }
-
-      if (!rooms.length) {
-        const indvdRooms = await fetchVworldIndvdHousingPrices(request, targetPnu);
-        for (const record of indvdRooms) {
-          addRoom(mapVworldHousingRecord(record));
-        }
       }
 
       if (!rooms.length && resolveDataGoKrKey()) {
@@ -238,8 +235,7 @@ export async function GET(request: Request) {
       }
 
       if (!rooms.length) {
-        const domainList = process.env.VERCEL ? domains.slice(0, 1) : domains;
-        for (const domain of domainList) {
+        for (const domain of domains) {
           try {
             const fallback = await fetchCadastralFallback(vworldKey, domain, targetPnu);
             if (fallback) {
@@ -252,17 +248,31 @@ export async function GET(request: Request) {
         }
       }
 
-      return rooms;
+      return { rooms, authFailed: authFailed && !rooms.length };
     };
 
-    let uniqueRooms = await collectRooms(pnu);
+    let { rooms: uniqueRooms, authFailed } = await collectRooms(pnu);
 
     if (!uniqueRooms.length && dongCode && jibun) {
       const builtPnu = buildPnu(dongCode, jibun);
       if (builtPnu && builtPnu !== pnu) {
         pnu = builtPnu;
-        uniqueRooms = await collectRooms(pnu);
+        const retry = await collectRooms(pnu);
+        uniqueRooms = retry.rooms;
+        authFailed = retry.authFailed;
       }
+    }
+
+    if (!uniqueRooms.length && authFailed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            '브이월드 API 인증에 실패했습니다. Vercel의 VWORLD_API_KEY가 로컬 .env.local과 동일한지, ' +
+            '브이월드 서비스 URL에 https://bigroot.vercel.app 이 등록됐는지 확인 후 Redeploy 하세요.',
+        },
+        { status: 502 }
+      );
     }
 
     if (!uniqueRooms.length) {

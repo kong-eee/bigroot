@@ -10,12 +10,17 @@ export function resolveVworldApiKey(): string | null {
 }
 
 /** 브이월드 개발자센터에 등록한 서비스 URL (NED·검색 API domain 파라미터) */
-export function getVworldRegisteredDomain(): string | null {
+export function getVworldRegisteredDomain(request?: Request): string | null {
   const explicit = process.env.VWORLD_REGISTERED_DOMAIN?.trim();
   if (explicit) return normalizeDomain(explicit);
 
   const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
   if (production) return normalizeDomain(production);
+
+  if (request) {
+    const origin = getRequestOrigin(request);
+    if (origin && !isLocalhostDomain(origin)) return origin;
+  }
 
   return null;
 }
@@ -29,20 +34,20 @@ export function getVworldApiDomainCandidates(request: Request): string[] {
     if (!candidates.includes(normalized)) candidates.push(normalized);
   };
 
-  add(getVworldRegisteredDomain());
+  const requestOrigin = getRequestOrigin(request);
+  if (requestOrigin && !isLocalhostDomain(requestOrigin)) {
+    add(requestOrigin);
+  }
+
+  add(getVworldRegisteredDomain(request));
 
   if (process.env.VERCEL) {
     add(getVercelOrigin());
-    const requestOrigin = getRequestOrigin(request);
-    if (requestOrigin && !isLocalhostDomain(requestOrigin)) {
-      add(requestOrigin);
-    }
   } else {
     const configured = process.env.VWORLD_DOMAIN?.trim();
     if (configured && !isLocalhostDomain(configured)) {
       add(configured);
     }
-    add(getRequestOrigin(request));
     add(getVercelOrigin());
   }
 
@@ -135,7 +140,10 @@ export function resolveVworldDomain(request: Request): string {
 
 export async function vworldFetch(url: string, init?: RequestInit): Promise<Response> {
   const bases = [url];
-  if (url.startsWith('https://api.vworld.kr')) {
+  if (
+    !process.env.VERCEL &&
+    url.startsWith('https://api.vworld.kr')
+  ) {
     bases.push(url.replace('https://api.vworld.kr', 'http://api.vworld.kr'));
   }
 

@@ -100,48 +100,78 @@ async function fetchNedHousingByEndpoint(
   pnu: string,
   endpoint: string,
   responseKey: string
-): Promise<NedHousingRecord[]> {
+): Promise<{ records: NedHousingRecord[]; authFailed: boolean }> {
   const domains = getVworldApiDomainCandidates(request);
   const year = new Date().getFullYear();
   const years = [year, year - 1, year - 2];
+  let authFailed = false;
 
   for (const stdrYear of years) {
     for (const domain of domains) {
       try {
         const result = await fetchNedAllPages(endpoint, responseKey, pnu, stdrYear, domain);
-        if (result.authError) continue;
-        if (result.records.length) return result.records;
+        if (result.authError) {
+          authFailed = true;
+          continue;
+        }
+        if (result.records.length) return { records: result.records, authFailed: false };
       } catch {
         /* try next domain/year */
       }
     }
   }
 
-  return [];
+  return { records: [], authFailed };
 }
 
 export async function fetchVworldApartHousingPrices(
   request: Request,
   pnu: string
 ): Promise<NedHousingRecord[]> {
-  return fetchNedHousingByEndpoint(
+  const { records } = await fetchNedHousingByEndpoint(
     request,
     pnu,
     'getApartHousingPriceAttr',
     'apartHousingPrices'
   );
+  return records;
 }
 
 export async function fetchVworldIndvdHousingPrices(
   request: Request,
   pnu: string
 ): Promise<NedHousingRecord[]> {
-  return fetchNedHousingByEndpoint(
+  const { records } = await fetchNedHousingByEndpoint(
     request,
     pnu,
     'getIndvdHousingPriceAttr',
     'indvdHousingPrices'
   );
+  return records;
+}
+
+export async function fetchVworldHousingWithMeta(
+  request: Request,
+  pnu: string
+): Promise<{ records: NedHousingRecord[]; authFailed: boolean }> {
+  const apart = await fetchNedHousingByEndpoint(
+    request,
+    pnu,
+    'getApartHousingPriceAttr',
+    'apartHousingPrices'
+  );
+  if (apart.records.length) return apart;
+
+  const indvd = await fetchNedHousingByEndpoint(
+    request,
+    pnu,
+    'getIndvdHousingPriceAttr',
+    'indvdHousingPrices'
+  );
+  return {
+    records: indvd.records,
+    authFailed: apart.authFailed && indvd.authFailed,
+  };
 }
 
 export function mapVworldHousingRecord(record: NedHousingRecord) {
