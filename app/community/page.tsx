@@ -35,6 +35,12 @@ export default function CommunityPage() {
     fetchPosts();
   }, [user, sortBy]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || posts.length === 0) return;
+    const postId = new URLSearchParams(window.location.search).get('post');
+    if (postId) setActivePostId(postId);
+  }, [posts]);
+
   const fetchPosts = async () => {
     const { data, error } = await supabase
       .from('posts')
@@ -78,59 +84,69 @@ export default function CommunityPage() {
     if (!newPostTitle.trim() || !newPostContent.trim()) return alert("제목과 내용을 입력해주세요.");
 
     const { error } = await supabase.from('posts').insert({
-      author_id: user.id, user_id: user.id, title: newPostTitle, content: newPostContent, category: newPostCategory
+      author_id: user.id,
+      title: newPostTitle,
+      content: newPostContent,
+      category: newPostCategory,
     });
     
     if (error) alert(`등록 실패: ${error.message}`);
-    else { setNewPostTitle(''); setNewPostContent(''); fetchPosts(); }
+    else {
+      setNewPostTitle('');
+      setNewPostContent('');
+      alert('게시글이 등록되었습니다.');
+      fetchPosts();
+    }
+  };
+
+  const sendNotification = async (
+    targetWriterId: string | undefined,
+    postId: string,
+    type: 'comment' | 'like'
+  ) => {
+    if (!user || !targetWriterId || targetWriterId === user.id) return;
+
+    const { error: notiError } = await supabase.from('notifications').insert({
+      user_id: targetWriterId,
+      actor_id: user.id,
+      post_id: postId,
+      type,
+      is_read: false,
+    });
+
+    if (notiError) {
+      console.error('알림 저장 실패:', notiError.message);
+    }
   };
 
   const toggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
-    if (!user) return alert("로그인이 필요합니다.");
-    
-    const targetWriterId = post.author_id || post.user_id;
-    
+    if (!user) return alert('로그인이 필요합니다.');
+
+    const targetWriterId = post.author_id;
+
     if (post.is_liked) {
       await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id);
     } else {
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id });
-      
-      const { error: notiError } = await supabase.from('notifications').insert({
-        user_id: targetWriterId,
-        actor_id: user.id,
-        post_id: post.id,
-        type: 'like'
-      });
-      
-      if (notiError) {
-        alert(`🚨 좋아요 알림 DB 저장 실패: ${notiError.message}`);
-      }
+      await sendNotification(targetWriterId, post.id, 'like');
     }
     fetchPosts();
   };
 
   const addComment = async (post: any) => {
-    if (!user || !profile?.nickname) return alert("닉네임 설정이 필요합니다.");
-    if (!commentContent.trim()) return alert("댓글 내용을 입력해주세요.");
+    if (!user || !profile?.nickname) return alert('닉네임 설정이 필요합니다.');
+    if (!commentContent.trim()) return alert('댓글 내용을 입력해주세요.');
 
-    const { error } = await supabase.from('comments').insert({ post_id: post.id, author_id: user.id, content: commentContent });
+    const { error } = await supabase.from('comments').insert({
+      post_id: post.id,
+      author_id: user.id,
+      content: commentContent,
+    });
     if (error) {
       alert(`답글 등록 실패: ${error.message}`);
     } else {
-      const targetWriterId = post.author_id || post.user_id;
-
-      const { error: notiError } = await supabase.from('notifications').insert({
-        user_id: targetWriterId,
-        actor_id: user.id,
-        post_id: post.id,
-        type: 'comment'
-      });
-
-      if (notiError) {
-        alert(`🚨 알림 DB 저장 실패 이유: ${notiError.message}`);
-      }
-      
+      await sendNotification(post.author_id, post.id, 'comment');
       setCommentContent('');
       fetchPosts();
     }
@@ -139,9 +155,14 @@ export default function CommunityPage() {
   const deleteItem = async (e: React.MouseEvent, table: string, id: string, hasComments: boolean = false) => {
     e.stopPropagation(); 
     if (table === 'posts' && hasComments) return alert("답글이 달린 게시글은 삭제할 수 없습니다. 🔒");
-    if (!confirm("정말로 Bonds 삭제하시겠습니까?")) return;
-    const { status } = await supabase.from(table).delete().eq('id', id);
-    if (status === 200 || status === 204) { alert("삭제되었습니다."); fetchPosts(); }
+    if (!confirm('정말로 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (!error) {
+      alert('삭제되었습니다.');
+      fetchPosts();
+    } else {
+      alert(`삭제 실패: ${error.message}`);
+    }
   };
 
   // 🔍 [신기능] 카테고리 필터링과 검색어 필터링을 체이닝하여 다중 연산합니다.

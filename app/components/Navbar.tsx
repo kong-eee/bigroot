@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+function formatUnreadBadge(count: number): string | null {
+  if (count <= 0) return null;
+  if (count > 5) return '5+';
+  return String(count);
+}
 
 export default function Navbar() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [nickname, setNickname] = useState('');
   const [tempNickname, setTempNickname] = useState('');
@@ -17,6 +25,50 @@ export default function Navbar() {
   const [showNotiDropdown, setShowNotiDropdown] = useState(false);
 
   const notiContainerRef = useRef<HTMLDivElement>(null);
+
+  const fetchProfileAndNoti = useCallback(async (userId: string) => {
+    const { data: profile } = await supabase.from('profiles').select('nickname, gender').eq('id', userId).single();
+    if (profile) {
+      const dbNickname = profile.nickname || '';
+      setNickname(dbNickname);
+      setTempNickname(dbNickname);
+      setGender(profile.gender as '남성' | '여성' || null);
+    }
+    if (!profile?.nickname || !profile?.gender) {
+      setShowModal(true);
+    }
+
+    const { data: notis, error } = await supabase
+      .from('notifications')
+      .select(`
+        *,
+        actor:profiles!fk_noti_actor(nickname),
+        posts(title)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      const { data: fallback } = await supabase
+        .from('notifications')
+        .select('*, posts(title)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (fallback) {
+        setNotifications(fallback);
+        setUnreadCount(fallback.filter((n: { is_read?: boolean }) => !n.is_read).length);
+      } else {
+        console.error('알림 불러오기 실패:', error.message);
+      }
+      return;
+    }
+
+    if (notis) {
+      setNotifications(notis);
+      setUnreadCount(notis.filter((n: { is_read?: boolean }) => !n.is_read).length);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -31,21 +83,25 @@ export default function Navbar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
-        fetchProfileAndNoti(user.id);
+        await fetchProfileAndNoti(user.id);
       }
     };
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) initAuth();
+      if (session?.user) fetchProfileAndNoti(session.user.id);
       else {
-        setNickname(''); setTempNickname(''); setGender(null); setNotifications([]); setUnreadCount(0);
+        setNickname('');
+        setTempNickname('');
+        setGender(null);
+        setNotifications([]);
+        setUnreadCount(0);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchProfileAndNoti]);
 
   // 실시간 알림 리스너
   useEffect(() => {
@@ -70,7 +126,7 @@ export default function Navbar() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, fetchProfileAndNoti]);
 
   // 바깥 영역 클릭 시 닫힘
   useEffect(() => {
@@ -83,42 +139,9 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchProfileAndNoti = async (userId: string) => {
-    const { data: profile } = await supabase.from('profiles').select('nickname, gender').eq('id', userId).single();
-    if (profile) {
-      const dbNickname = profile.nickname || '';
-      setNickname(dbNickname);
-      setTempNickname(dbNickname);
-      setGender(profile.gender as '남성' | '여성' || null);
-    }
-    if (!profile?.nickname || !profile?.gender) {
-      setShowModal(true);
-    }
-
-    const { data: notis, error } = await supabase
-      .from('notifications')
-      .select(`
-        *, 
-        actor:profiles!fk_noti_actor(nickname), 
-        posts(title)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("알림 불러오기 실패:", error.message);
-      return;
-    }
-
-    if (notis) {
-      setNotifications(notis);
-      setUnreadCount(notis.filter((n: any) => !n.is_read).length);
-    }
-  };
-
   const saveProfile = async () => {
     if (!tempNickname.trim()) return alert("닉네임을 입력해주세요!");
-    if (!gender) return alert("성별을 Schuyler 수정해주세요!");
+    if (!gender) return alert('성별을 선택해주세요!');
     
     const { error } = await supabase.from('profiles').upsert({
       id: user.id, nickname: tempNickname, gender: gender, updated_at: new Date().toISOString(),
@@ -136,8 +159,19 @@ export default function Navbar() {
   const markAllAsRead = async () => {
     if (!user) return;
     await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
+
+  const openNotifications = async () => {
+    const willOpen = !showNotiDropdown;
+    setShowNotiDropdown(willOpen);
+    if (willOpen) {
+      await markAllAsRead();
+    }
+  };
+
+  const badgeLabel = formatUnreadBadge(unreadCount);
 
   const loginWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -191,58 +225,101 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            {user && nickname && (
-              <div className="relative" ref={notiContainerRef}>
-                <button onClick={() => { setShowNotiDropdown(!showNotiDropdown); if(!showNotiDropdown) markAllAsRead(); }} className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative">
-                  🔔
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-full ring-2 ring-white">
-                      {unreadCount > 5 ? '5++' : unreadCount}
-                    </span>
-                  )}
-                </button>
-                
-                {/* 알림 드롭다운 레이어 (z-[110] 배정) */}
-                {showNotiDropdown && (
-                  <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[110] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
-                      <span className="font-black text-xs text-slate-800">최신 알림 센터</span>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto text-xs text-slate-900">
-                      {notifications.length === 0 ? (
-                        <p className="text-slate-400 text-center py-8 font-medium">알림이 없습니다. 🌱</p>
-                      ) : (
-                        notifications.map((noti) => (
-                          <div key={noti.id} className={`p-3.5 border-b border-slate-50 last:border-0 flex gap-2 items-start ${!noti.is_read ? 'bg-blue-50/40' : ''}`}>
-                            <span>{noti.type === 'comment' ? '💬' : '👍'}</span>
-                            <div className="space-y-0.5 flex-1">
-                              <p className="text-slate-700 font-medium"><span className="font-black text-slate-900">{noti.actor?.nickname || '세입자'}</span>님이 {noti.type === 'comment' ? '댓글을 달았습니다.' : '내 글을 추천했습니다.'}</p>
-                              <p className="text-[10px] text-slate-400 font-bold truncate max-w-[200px]">원문: {noti.posts?.title}</p>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {user ? (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="relative" ref={notiContainerRef}>
+                  <button
+                    type="button"
+                    onClick={openNotifications}
+                    aria-label="알림"
+                    className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative"
+                  >
+                    🔔
+                    {badgeLabel && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white font-black text-[9px] px-1 rounded-full ring-2 ring-white leading-none">
+                        {badgeLabel}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotiDropdown && (
+                    <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[110] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
+                        <span className="font-black text-xs text-slate-800">최신 알림 센터</span>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto text-xs text-slate-900">
+                        {notifications.length === 0 ? (
+                          <p className="text-slate-400 text-center py-8 font-medium">알림이 없습니다. 🌱</p>
+                        ) : (
+                          notifications.map((noti) => (
+                            <button
+                              key={noti.id}
+                              type="button"
+                              onClick={() => {
+                                setShowNotiDropdown(false);
+                                if (noti.post_id) {
+                                  router.push(`/community?post=${noti.post_id}`);
+                                } else {
+                                  router.push('/community');
+                                }
+                              }}
+                              className={`w-full text-left p-3.5 border-b border-slate-50 last:border-0 flex gap-2 items-start hover:bg-slate-50 transition-colors ${!noti.is_read ? 'bg-blue-50/40' : ''}`}
+                            >
+                              <span>{noti.type === 'comment' ? '💬' : '👍'}</span>
+                              <div className="space-y-0.5 flex-1">
+                                <p className="text-slate-700 font-medium">
+                                  <span className="font-black text-slate-900">
+                                    {noti.actor?.nickname || '세입자'}
+                                  </span>
+                                  님이{' '}
+                                  {noti.type === 'comment'
+                                    ? '댓글을 달았습니다.'
+                                    : '내 글을 추천했습니다.'}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold truncate max-w-[200px]">
+                                  원문: {noti.posts?.title || '게시글'}
+                                </p>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {nickname ? (
-                  <Link href="/mypage" className="text-sm font-black text-slate-700 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 hover:border-blue-500 transition-all">
+                  <Link
+                    href="/mypage"
+                    className="text-sm font-black text-slate-700 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 hover:border-blue-500 transition-all"
+                  >
                     {nickname} 님
                   </Link>
                 ) : (
-                  <button onClick={() => setShowModal(true)} className="text-xs font-black text-blue-500 bg-blue-50 px-4 py-2.5 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(true)}
+                    className="text-xs font-black text-blue-500 bg-blue-50 px-4 py-2.5 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all"
+                  >
                     🌱 닉네임 설정하기
                   </button>
                 )}
-                <button onClick={() => supabase.auth.signOut()} className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors">로그아웃</button>
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  로그아웃
+                </button>
               </div>
             ) : (
-              <button onClick={loginWithGoogle} className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-[#007AFF] transition-all">시작하기</button>
+              <button
+                type="button"
+                onClick={loginWithGoogle}
+                className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-[#007AFF] transition-all"
+              >
+                시작하기
+              </button>
             )}
           </div>
         </div>
