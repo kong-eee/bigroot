@@ -84,7 +84,7 @@ export default function RenewalCheckPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="page-main flex flex-col">
       <header className="p-6 bg-white border-b flex items-center gap-4 sticky top-0 z-10 shadow-sm">
         <Link href="/" className="p-2 hover:bg-gray-100 rounded-full text-gray-500">←</Link>
         <h1 className="text-xl font-black text-blue-600 tracking-tighter">GeunBang 진단 센터 🏥</h1>

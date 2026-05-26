@@ -73,7 +73,7 @@ export default function RentIncreasePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 font-sans">
+    <div className="page-main pb-20">
       <header className="p-6 bg-white border-b border-gray-100 flex items-center gap-4 sticky top-0 z-50">
         <Link href="/" className="p-2 hover:bg-gray-100 rounded-xl text-gray-400">←</Link>
         <h1 className="text-xl font-black text-gray-900 tracking-tight">임대료 인상 진단기</h1>

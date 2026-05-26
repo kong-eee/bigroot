@@ -339,7 +339,7 @@ export default function SafetyCheckPage() {
         onLoad={initMap}
       />
 
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6 pt-32 font-sans text-slate-900">
+      <div className="page-main flex flex-col items-center p-4 sm:p-6">
         <div className="w-full max-w-xl space-y-8">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-[1000] text-slate-900 tracking-tight">

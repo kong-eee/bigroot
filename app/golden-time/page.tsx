@@ -89,7 +89,7 @@ export default function GoldenTimePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 font-sans">
+    <div className="page-main pb-24">
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 p-5">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
           <Link href="/" className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all">←</Link>

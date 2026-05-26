@@ -230,7 +230,7 @@ function CommunityContent() {
   const isAllowed = user && profile?.nickname;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6 pt-28 font-sans text-slate-900">
+    <div className="page-main flex flex-col items-center p-4 sm:p-6">
       <div className="w-full max-w-2xl space-y-6">
         <div className="flex justify-between items-end w-full pb-2">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">커뮤니티 광장</h2>
@@ -525,7 +525,7 @@ export default function CommunityPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center pt-28 text-slate-500 font-bold">
+        <div className="page-main flex items-center justify-center text-[var(--text-muted)] font-bold">
           커뮤니티 불러오는 중...
         </div>
       }

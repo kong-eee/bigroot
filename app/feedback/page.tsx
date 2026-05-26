@@ -162,7 +162,7 @@ export default function FeedbackPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center p-6 pt-28 font-sans text-slate-900">
+    <div className="page-main flex flex-col items-center p-4 sm:p-6">
       <div className="w-full max-w-2xl space-y-6">
         <div className="space-y-2">
           <h2 className="text-2xl font-black tracking-tight">문의 · 요청</h2>

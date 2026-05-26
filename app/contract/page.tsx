@@ -9,7 +9,7 @@ export default function ContractGuidePage() {
   const [activeTab, setActiveTab] = useState<BuildingType>('all');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-700">
+    <div className="page-main">
       
       {/* 🌐 상단 바 */}
       <nav className="fixed top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-slate-100">

@@ -47,7 +47,7 @@ export default function RightsGuidePage() {
   const [activeTab, setActiveTab] = useState<keyof typeof guideData>('residential');
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="page-main pb-24">
       {/* 고정 헤더 */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 p-5">
         <div className="max-w-2xl mx-auto flex items-center gap-4">

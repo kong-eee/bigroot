@@ -77,7 +77,7 @@ export default function LegalAIPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
+    <div className="page-main flex flex-col">
       <header className="p-6 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <Link href="/" className="hover:text-blue-600 transition-colors p-2 rounded-xl hover:bg-gray-100">

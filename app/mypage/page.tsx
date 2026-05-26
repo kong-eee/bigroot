@@ -130,11 +130,11 @@ export default function MyPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center font-sans"><div className="text-lg font-black text-slate-400 animate-pulse">불러오는 중...</div></div>;
-  if (!user) return <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center font-sans p-6 text-center space-y-4"><span className="text-5xl">🔒</span><h2 className="text-2xl font-black">로그인이 필요합니다.</h2><Link href="/" className="px-6 py-3 bg-[#007AFF] text-white font-black rounded-xl text-sm">홈으로</Link></div>;
+  if (loading) return <div className="page-main flex items-center justify-center"><div className="text-lg font-black text-[var(--text-muted)] animate-pulse">불러오는 중...</div></div>;
+  if (!user) return <div className="page-main flex flex-col items-center justify-center p-6 text-center space-y-4"><span className="text-5xl">🔒</span><h2 className="text-2xl font-black">로그인이 필요합니다.</h2><Link href="/" className="ui-btn-primary text-sm">홈으로</Link></div>;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
+    <div className="page-main">
       <nav className="w-full bg-white border-b border-slate-100 h-20 flex items-center">
         <div className="max-w-6xl mx-auto w-full px-6 flex justify-between items-center">
           <Link href="/" className="text-2xl font-[1000] tracking-tighter text-slate-900">
