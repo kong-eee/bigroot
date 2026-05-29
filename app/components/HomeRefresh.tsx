@@ -12,6 +12,9 @@ const SERVICES = [
   { href: '/rights-guide', icon: '📖', title: '권리백과', desc: '알아두면 좋은 세입자 권리를 정리했어요.' },
   { href: '/rent-increase', icon: '📈', title: '임대료 진단', desc: '임대료 인상이 적정한지 확인해요.' },
   { href: '/golden-time', icon: '⏰', title: '골든타임', desc: '갱신·통보 등 중요 날짜를 챙겨요.' },
+  { href: '/lease-timeline', icon: '📅', title: '내 타임라인', desc: '입주·만기·갱신·보증금 일정을 한눈에.' },
+  { href: '/move-in-checklist', icon: '✅', title: '입주 체크', desc: '입주 당일~30일 필수 항목을 체크해요.' },
+  { href: '/deposit-return', icon: '💸', title: '보증금 반환', desc: '퇴실·분쟁·임차권등기 단계별 가이드.' },
   { href: '/feedback', icon: '✉️', title: '문의·요청', desc: '원하는 기능·개선점을 알려 주세요.' },
 ];
 

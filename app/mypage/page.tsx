@@ -192,6 +192,9 @@ export default function MyPage() {
                   {tipMessage}
                 </p>
 
+                <Link href="/lease-timeline" className="block text-center w-full py-3 bg-blue-600 hover:bg-blue-500 text-xs font-black rounded-xl transition-all">
+                  전체 타임라인 보기 📅
+                </Link>
                 <button onClick={() => setIsEditingDate(true)} className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all">
                   설정 변경하기 ⚙️
                 </button>
@@ -229,6 +232,24 @@ export default function MyPage() {
 
         {/* 내가 쓴 글 목록 */}
         <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/lease-timeline" className="ui-card p-5 hover:border-[var(--brand)] transition-colors group">
+              <span className="text-2xl">📅</span>
+              <h4 className="font-black text-sm mt-2 group-hover:text-[var(--brand)]">개인 타임라인</h4>
+              <p className="text-[11px] font-medium text-[var(--text-secondary)] mt-1">입주·만기·갱신 일정</p>
+            </Link>
+            <Link href="/move-in-checklist" className="ui-card p-5 hover:border-[var(--brand)] transition-colors group">
+              <span className="text-2xl">✅</span>
+              <h4 className="font-black text-sm mt-2 group-hover:text-[var(--brand)]">입주 체크</h4>
+              <p className="text-[11px] font-medium text-[var(--text-secondary)] mt-1">입주 후 필수 항목</p>
+            </Link>
+            <Link href="/deposit-return" className="ui-card p-5 hover:border-[var(--brand)] transition-colors group">
+              <span className="text-2xl">💸</span>
+              <h4 className="font-black text-sm mt-2 group-hover:text-[var(--brand)]">보증금 반환</h4>
+              <p className="text-[11px] font-medium text-[var(--text-secondary)] mt-1">분쟁 대응 가이드</p>
+            </Link>
+          </div>
+
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-50">
               <h3 className="text-lg font-black">내가 쓴 이야기 <span className="text-[#007AFF]">{myPosts.length}</span></h3>

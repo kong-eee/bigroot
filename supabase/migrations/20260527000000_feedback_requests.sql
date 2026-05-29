@@ -22,6 +22,11 @@ create index if not exists feedback_requests_created_at_idx
 create index if not exists feedback_requests_author_id_idx
   on public.feedback_requests (author_id);
 
+-- Data API 노출 (2026-05-30~ 명시 GRANT 필수)
+grant select on public.feedback_requests to anon;
+grant select, insert, update, delete on public.feedback_requests to authenticated;
+grant select, insert, update, delete on public.feedback_requests to service_role;
+
 -- 3) 운영자 여부 (RLS용)
 create or replace function public.is_app_admin()
 returns boolean

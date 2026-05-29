@@ -9,17 +9,8 @@ import {
   markNotificationsRead,
   type AppNotification,
 } from '@/lib/notifications-client';
-
-const NAV_LINKS = [
-  { href: '/contract', label: '계약전 체크', highlight: true },
-  { href: '/safety-check', label: '안전진단', highlight: true },
-  { href: '/community', label: '커뮤니티' },
-  { href: '/feedback', label: '문의·요청' },
-  { href: '/rights-guide', label: '권리백과' },
-  { href: '/legal-ai', label: '근방 AI' },
-  { href: '/rent-increase', label: '임대료진단' },
-  { href: '/golden-time', label: '골든타임' },
-];
+import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
+import NavDropdown from './NavDropdown';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -43,12 +34,11 @@ export default function Navbar() {
   const notiContainerRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async () => {
-    try {
-      const { notifications: list, unreadCount: count } = await fetchNotifications();
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    const { notifications: list, unreadCount: count, transientError } = await fetchNotifications();
+    if (!transientError) {
       setNotifications(list);
       setUnreadCount(count);
-    } catch (error) {
-      console.error('알림 불러오기 실패:', error);
     }
   }, []);
 
@@ -136,8 +126,16 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) return;
-    const interval = window.setInterval(() => loadNotifications(), 15000);
-    return () => window.clearInterval(interval);
+    const tick = () => {
+      if (document.visibilityState === 'visible') void loadNotifications();
+    };
+    const interval = window.setInterval(tick, 15000);
+    const onVisible = () => tick();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [user, loadNotifications]);
 
   useEffect(() => {
@@ -299,22 +297,22 @@ export default function Navbar() {
       )}
 
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/95 backdrop-blur-md">
-        <div className="mx-auto flex h-[var(--nav-height)] max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand)] text-lg text-white font-black">
+        <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-lg text-white font-black">
               B
             </span>
-            <span className="text-lg sm:text-xl font-black tracking-tight text-[var(--text-primary)]">
+            <span className="hidden sm:inline text-lg font-black tracking-tight text-[var(--text-primary)] whitespace-nowrap">
               BIG<span className="text-[var(--brand)]">ROOT</span>
             </span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center max-w-3xl">
-            {NAV_LINKS.map((item) => (
+          <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-0.5">
+            {NAV_PRIMARY.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${
+                className={`px-2.5 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${
                   pathname === item.href
                     ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
                     : item.highlight
@@ -325,9 +323,11 @@ export default function Navbar() {
                 {item.label}
               </Link>
             ))}
+            <NavDropdown label="내 임대차" links={NAV_LEASE} pathname={pathname} variant="refresh" />
+            <NavDropdown label="더보기" links={NAV_MORE} pathname={pathname} variant="refresh" />
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {user ? (
               <>
                 <div className="relative" ref={notiContainerRef}>
@@ -408,7 +408,7 @@ export default function Navbar() {
 
             <button
               type="button"
-              className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)]"
+              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)]"
               aria-label="메뉴"
               onClick={() => setMenuOpen((o) => !o)}
             >
@@ -418,9 +418,9 @@ export default function Navbar() {
         </div>
 
         {menuOpen && (
-          <div className="lg:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-var(--nav-height))] overflow-y-auto">
+          <div className="xl:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-var(--nav-height))] overflow-y-auto">
             <nav className="p-3 space-y-1">
-              {NAV_LINKS.map((item) => (
+              {NAV_ALL.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

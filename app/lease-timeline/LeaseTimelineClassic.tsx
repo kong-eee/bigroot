@@ -1,0 +1,207 @@
+'use client';
+
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import {
+  buildLeaseTimeline,
+  formatDateKo,
+  TIMELINE_STATUS_LABEL,
+  type PropertyType,
+  type TimelineEvent,
+} from '@/lib/lease-timeline';
+import { useLeaseProfile } from '@/lib/use-lease-profile';
+
+function StatusPill({ status }: { status: TimelineEvent['status'] }) {
+  const map = {
+    done: 'bg-slate-200 text-slate-600',
+    now: 'bg-[#007AFF] text-white',
+    soon: 'bg-orange-100 text-orange-700',
+    upcoming: 'bg-blue-50 text-blue-700',
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-[10px] font-black ${map[status]}`}>
+      {TIMELINE_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+export default function LeaseTimelineClassic() {
+  const {
+    user,
+    loading,
+    propertyType,
+    contractEndDate,
+    moveInDate,
+    setPropertyType,
+    setContractEndDate,
+    setMoveInDateState,
+    saveProfile,
+  } = useLeaseProfile();
+
+  const [typeInput, setTypeInput] = useState<PropertyType>('주택');
+  const [endInput, setEndInput] = useState('');
+  const [moveInput, setMoveInput] = useState('');
+  const [editing, setEditing] = useState(false);
+
+  const events = useMemo(
+    () =>
+      buildLeaseTimeline({
+        propertyType,
+        moveInDate: moveInDate || undefined,
+        contractEndDate: contractEndDate || undefined,
+      }),
+    [propertyType, moveInDate, contractEndDate]
+  );
+
+  const openEdit = () => {
+    setTypeInput(propertyType);
+    setEndInput(contractEndDate);
+    setMoveInput(moveInDate);
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    const ok = await saveProfile({
+      contractEndDate: endInput,
+      propertyType: typeInput,
+      moveInDate: moveInput,
+    });
+    if (ok) {
+      setPropertyType(typeInput);
+      setContractEndDate(endInput);
+      setMoveInDateState(moveInput);
+      setEditing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] pt-28 flex items-center justify-center font-black text-slate-400">
+        불러오는 중...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-24">
+      <div className="max-w-6xl mx-auto px-6 pt-28">
+        <header className="text-center mb-14 space-y-4">
+          <span className="inline-block px-4 py-1.5 bg-blue-50 text-[#007AFF] text-xs font-black rounded-full">
+            MY LEASE TIMELINE
+          </span>
+          <h1 className="text-4xl md:text-5xl font-[1000] tracking-tight">
+            개인 임대차 <span className="text-[#007AFF]">타임라인</span>
+          </h1>
+          <p className="text-slate-500 font-bold max-w-xl mx-auto">
+            입주부터 갱신·만기·보증금 반환까지, 내 일정을 한눈에 보고 다음 행동을 정하세요.
+          </p>
+        </header>
+
+        <div className="grid lg:grid-cols-3 gap-10">
+          <aside className="space-y-6">
+            <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-2xl space-y-5">
+              <h2 className="text-lg font-black">일정 설정</h2>
+              {!user && (
+                <p className="text-[11px] text-slate-300 font-medium bg-white/10 p-3 rounded-xl">
+                  로그인 시 만기일이 마이페이지와 동기화됩니다.
+                </p>
+              )}
+              {editing ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['주택', '상가'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTypeInput(t)}
+                        className={`py-2.5 rounded-xl text-xs font-black ${
+                          typeInput === t ? 'bg-white text-slate-900' : 'bg-white/10 text-slate-400'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="date"
+                    value={moveInput}
+                    onChange={(e) => setMoveInput(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold"
+                    aria-label="입주일"
+                  />
+                  <input
+                    type="date"
+                    value={endInput}
+                    onChange={(e) => setEndInput(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-sm font-bold"
+                    aria-label="만기일"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="w-full py-3 bg-[#007AFF] rounded-xl font-black text-sm"
+                  >
+                    저장
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm font-bold">
+                  <p>{propertyType} · 입주 {moveInDate || '미설정'}</p>
+                  <p>만기 {contractEndDate || '미설정'}</p>
+                  <button
+                    type="button"
+                    onClick={openEdit}
+                    className="w-full mt-3 py-3 bg-white/10 rounded-xl text-xs font-black hover:bg-white/20"
+                  >
+                    수정하기
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-2 text-sm font-black">
+              <Link href="/move-in-checklist" className="block text-[#007AFF] hover:underline">
+                입주 체크리스트
+              </Link>
+              <Link href="/deposit-return" className="block text-[#007AFF] hover:underline">
+                보증금 반환 가이드
+              </Link>
+            </div>
+          </aside>
+
+          <div className="lg:col-span-2 space-y-6">
+            {events.length === 0 ? (
+              <div className="bg-white rounded-[2.5rem] p-12 text-center text-slate-400 font-bold border border-slate-100">
+                일정을 입력해 주세요.
+              </div>
+            ) : (
+              events.map((ev) => (
+                <article
+                  key={ev.id}
+                  className="bg-white rounded-[2rem] border-2 border-slate-50 p-8 shadow-sm hover:border-blue-100 transition-all"
+                >
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <StatusPill status={ev.status} />
+                    <span className="text-[10px] font-black text-slate-400">
+                      {formatDateKo(ev.date)}
+                      {ev.daysUntil > 0 && ev.status !== 'done' ? ` · D-${ev.daysUntil}` : ''}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black mb-2">{ev.title}</h3>
+                  <p className="text-slate-500 font-medium text-sm leading-relaxed">{ev.description}</p>
+                  {ev.href && (
+                    <Link
+                      href={ev.href}
+                      className="inline-block mt-4 text-xs font-black text-[#007AFF] underline"
+                    >
+                      자세히 →
+                    </Link>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

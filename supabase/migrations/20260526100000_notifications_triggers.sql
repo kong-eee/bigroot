@@ -14,6 +14,9 @@ create table if not exists public.notifications (
 create index if not exists notifications_user_id_idx on public.notifications (user_id);
 create index if not exists notifications_user_unread_idx on public.notifications (user_id, is_read);
 
+grant select, insert, update, delete on public.notifications to authenticated;
+grant select, insert, update, delete on public.notifications to service_role;
+
 alter table public.notifications enable row level security;
 
 drop policy if exists "notifications_select_own" on public.notifications;

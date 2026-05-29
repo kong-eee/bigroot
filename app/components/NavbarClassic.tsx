@@ -9,6 +9,9 @@ import {
   markNotificationsRead,
   type AppNotification,
 } from '@/lib/notifications-client';
+import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
+import NavDropdown from './NavDropdown';
+import { usePathname } from 'next/navigation';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -18,7 +21,9 @@ function formatUnreadBadge(count: number): string | null {
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [nickname, setNickname] = useState('');
   const [tempNickname, setTempNickname] = useState('');
   const [gender, setGender] = useState<'남성' | '여성' | null>(null);
@@ -32,12 +37,11 @@ export default function Navbar() {
   const notiContainerRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async () => {
-    try {
-      const { notifications: list, unreadCount: count } = await fetchNotifications();
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    const { notifications: list, unreadCount: count, transientError } = await fetchNotifications();
+    if (!transientError) {
       setNotifications(list);
       setUnreadCount(count);
-    } catch (error) {
-      console.error('알림 불러오기 실패:', error);
     }
   }, []);
 
@@ -61,6 +65,17 @@ export default function Navbar() {
     },
     [loadNotifications]
   );
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -123,8 +138,16 @@ export default function Navbar() {
   // 15초마다 알림 폴링 (Realtime 보조)
   useEffect(() => {
     if (!user) return;
-    const interval = window.setInterval(() => loadNotifications(), 15000);
-    return () => window.clearInterval(interval);
+    const tick = () => {
+      if (document.visibilityState === 'visible') void loadNotifications();
+    };
+    const interval = window.setInterval(tick, 15000);
+    const onVisible = () => tick();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [user, loadNotifications]);
 
   // 커뮤니티 댓글/좋아요 후 즉시 갱신
@@ -245,25 +268,37 @@ export default function Navbar() {
 
       {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
       <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-[#007AFF] rounded-xl flex items-center justify-center text-white font-black text-xl">B</div>
-              <span className="text-2xl font-[1000] tracking-tighter text-slate-900">BIG<span className="text-[#007AFF]">ROOT</span></span>
-            </Link>
-            
-<div className="hidden lg:flex items-center gap-10 text-[15px] font-bold text-slate-500">
-  <Link href="/contract" className="hover:text-[#007AFF] transition-colors text-blue-600">계약전 체크!🔥</Link>
-  <Link href="/safety-check" className="hover:text-[#007AFF] transition-colors text-emerald-600 font-black">안전진단기 단독✨</Link> {/* ✅ 추가 */}
-  <Link href="/community" className="hover:text-[#007AFF] transition-colors">커뮤니티</Link>
-  <Link href="/feedback" className="hover:text-[#007AFF] transition-colors">문의·요청</Link>
-  <Link href="/rights-guide" className="hover:text-[#007AFF] transition-colors">권리백과</Link>
-  <Link href="/rent-increase" className="hover:text-[#007AFF] transition-colors">임대료진단</Link>
-  <Link href="/golden-time" className="hover:text-[#007AFF] transition-colors">골든타임</Link>
-</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-10 h-10 bg-[#007AFF] rounded-xl flex items-center justify-center text-white font-black text-xl shrink-0">
+              B
+            </div>
+            <span className="hidden sm:inline text-xl sm:text-2xl font-[1000] tracking-tighter text-slate-900 whitespace-nowrap">
+              BIG<span className="text-[#007AFF]">ROOT</span>
+            </span>
+          </Link>
+
+          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-5 text-sm font-bold text-slate-500">
+            {NAV_PRIMARY.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`whitespace-nowrap hover:text-[#007AFF] transition-colors ${
+                  pathname === item.href
+                    ? 'text-[#007AFF]'
+                    : item.highlight
+                      ? 'text-blue-600'
+                      : ''
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <NavDropdown label="내 임대차" links={NAV_LEASE} pathname={pathname} variant="classic" />
+            <NavDropdown label="더보기" links={NAV_MORE} pathname={pathname} variant="classic" />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-auto">
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="relative" ref={notiContainerRef}>
@@ -348,13 +383,50 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={loginWithGoogle}
-                className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-[#007AFF] transition-all"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-[#007AFF] transition-all"
               >
                 시작하기
               </button>
             )}
+
+            <button
+              type="button"
+              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg"
+              aria-label="메뉴"
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              {menuOpen ? '✕' : '☰'}
+            </button>
           </div>
         </div>
+
+        {menuOpen && (
+          <div className="xl:hidden border-t border-slate-100 bg-white max-h-[calc(100vh-5rem)] overflow-y-auto">
+            <div className="p-4 space-y-1">
+              {NAV_ALL.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
+                    pathname === item.href
+                      ? 'bg-blue-50 text-[#007AFF]'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+              {user && nickname && (
+                <Link
+                  href="/mypage"
+                  className="block py-3 px-4 rounded-xl text-[15px] font-bold text-slate-800 border-t border-slate-100 mt-2"
+                >
+                  {nickname} · 마이페이지
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
     </>
   );

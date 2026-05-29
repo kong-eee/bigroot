@@ -98,6 +98,31 @@ export default function Home() {
                 desc="계약 갱신 요구권, 퇴거 통보 등 절대로 놓쳐선 안 될 임대차 중요 날짜를 정밀하게 추적합니다."
               />
             </div>
+
+            <div className="text-center space-y-4 pt-16">
+              <h3 className="text-slate-400 font-black tracking-widest text-sm uppercase">My Lease</h3>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900">내 임대차 관리</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <ServiceCard
+                href="/lease-timeline"
+                icon="📅"
+                title="개인 타임라인"
+                desc="입주부터 만기·갱신·보증금 반환까지 내 일정을 한 줄로 정리합니다."
+              />
+              <ServiceCard
+                href="/move-in-checklist"
+                icon="✅"
+                title="입주 직후 체크"
+                desc="전입신고, 하자 기록, 임대차 신고 등 입주 후 필수 항목을 단계별로 챙깁니다."
+              />
+              <ServiceCard
+                href="/deposit-return"
+                icon="💸"
+                title="보증금 반환 가이드"
+                desc="퇴실 통보부터 내용증명·분쟁조정·임차권등기까지 분쟁 대응 절차를 안내합니다."
+              />
+            </div>
           </div>
         </section>
       </main>
@@ -118,6 +143,9 @@ export default function Home() {
                 <Link href="/rights-guide" className="hover:text-white transition-colors">권리백과</Link>
                 <Link href="/rent-increase" className="hover:text-white transition-colors">임대료진단</Link>
                 <Link href="/golden-time" className="hover:text-white transition-colors">골든타임</Link>
+                <Link href="/lease-timeline" className="hover:text-white transition-colors">내 타임라인</Link>
+                <Link href="/move-in-checklist" className="hover:text-white transition-colors">입주 체크</Link>
+                <Link href="/deposit-return" className="hover:text-white transition-colors">보증금 반환</Link>
               </div>
             </div>
             <div className="space-y-4">

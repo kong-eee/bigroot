@@ -10,21 +10,37 @@ export type AppNotification = {
   actor?: { nickname: string };
 };
 
-export async function fetchNotifications(): Promise<{
+export type FetchNotificationsResult = {
   notifications: AppNotification[];
   unreadCount: number;
-}> {
-  const res = await fetch('/api/notifications', { cache: 'no-store' });
-  const data = await res.json();
+  /** 네트워크·서버 일시 오류 (dev HMR, 재컴파일 등) */
+  transientError?: boolean;
+};
 
-  if (!res.ok || !data.success) {
-    throw new Error(data.error || '알림을 불러오지 못했습니다.');
+export async function fetchNotifications(): Promise<FetchNotificationsResult> {
+  try {
+    const res = await fetch('/api/notifications', {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.success) {
+      return {
+        notifications: [],
+        unreadCount: 0,
+        transientError: true,
+      };
+    }
+
+    return {
+      notifications: data.notifications ?? [],
+      unreadCount: data.unreadCount ?? 0,
+    };
+  } catch {
+    // fetch 자체 실패(TypeError: Failed to fetch) — Supabase 권한 오류와 무관
+    return { notifications: [], unreadCount: 0, transientError: true };
   }
-
-  return {
-    notifications: data.notifications ?? [],
-    unreadCount: data.unreadCount ?? 0,
-  };
 }
 
 export async function createNotification(payload: {
