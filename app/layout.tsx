@@ -15,7 +15,7 @@ const noto = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: '빅루트 (BIGROOT) - 세입자의 든든한 뿌리',
   description:
-    '세입자의 든든한 뿌리, 든든한 길. BIG ROOT · BIG ROUTE — 보증금과 권리를 함께 지킵니다.',
+    '세입자의 든든한 뿌리, 든든한 길. — 보증금과 권리를 함께 지킵니다.',
 };
 
 export default function RootLayout({

@@ -13,7 +13,7 @@ export default function SiteFooter() {
             <BrandTagline compact showWordplay={false} />
           </div>
           <p className="text-sm font-medium max-w-sm text-white/70">
-            뿌리처럼 단단한 권리, 길처럼 이어지는 정보. 세입자의 보증금과 계약을 함께
+            뿌리처럼 단단한 권리, 길처럼 이어지는 정보. <br/>세입자의 보증금과 계약을 함께
             지킵니다.
           </p>
         </div>

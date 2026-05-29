@@ -39,9 +39,9 @@ export default function HomeRefresh() {
                 </h1>
                 <BrandTagline showWordplay />
                 <p className="text-base sm:text-lg font-medium text-[var(--text-secondary)] leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  이름처럼 <strong className="text-[var(--text-primary)]">ROOT(뿌리)</strong>처럼
-                  권리를 단단히 세우고, <strong className="text-[var(--text-primary)]">ROUTE(길)</strong>
-                  처럼 다음 선택까지 안내합니다. 어려운 임대차, 혼자 고민하지 마세요.
+                  
+                  권리를 단단히 세우고, 
+                  다음 선택까지 안내합니다. <br/>어려운 임대차, 혼자 고민하지 마세요.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                   <Link href="/safety-check" className="ui-btn-primary text-base px-6">
@@ -54,13 +54,13 @@ export default function HomeRefresh() {
               </div>
 
               <div className="ui-card p-6 sm:p-8 space-y-4">
-                <p className="text-sm font-bold text-[var(--brand)]">빅루트가 지키는 것</p>
+                <p className="text-sm font-bold text-[var(--brand)]">빅루트에서 할 수 있는 것</p>
                 <ul className="space-y-3 text-sm font-medium text-[var(--text-secondary)]">
                   <li className="flex gap-2">
-                    <span className="text-[var(--brand)]">✓</span> 보증금·계약 권리 — 뿌리
+                    <span className="text-[var(--brand)]">✓</span> 보증금·계약 권리
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-[var(--brand)]">✓</span> 절차·정보 안내 — 길
+                    <span className="text-[var(--brand)]">✓</span> 절차·정보 안내
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[var(--brand)]">✓</span> 모바일에서도 편한 화면

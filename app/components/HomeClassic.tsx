@@ -37,7 +37,7 @@ export default function Home() {
               
               <p className="text-xl md:text-2xl text-slate-500 font-bold leading-relaxed max-w-2xl mx-auto lg:mx-0">
                 복잡한 부동산 법률과 불합리한 상황 속에서도<br className="hidden md:block" /> 
-                당신의 소중한 보증금과 권리를 단단하게 지켜드립니다.
+                ,<br/>당신의 소중한 보증금과 권리를 단단하게 지켜드립니다.
               </p>
               
               <div className="flex flex-wrap gap-5 justify-center lg:justify-start">
