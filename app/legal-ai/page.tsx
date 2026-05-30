@@ -83,7 +83,6 @@ export default function LegalAIPage() {
         badge="근방 AI"
         title="주택임대차보호법, 쉽게 물어보기"
         description="조문을 바탕으로 안내해 드려요. 법률 자문이 아닌 정보 제공 서비스입니다."
-        showBrand={false}
       />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4 space-y-6 min-h-0">

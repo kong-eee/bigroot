@@ -36,6 +36,13 @@ create policy "..." on public.your_table ...;
 
 RPC 함수는 `grant execute on function public.fn_name(...) to anon, authenticated;` 를 추가하세요.
 
+### 골든타임 알림 예약 (카카오 알림톡)
+
+1. `migrations/20260529000000_golden_time_reminders.sql` 실행  
+2. Solapi·카카오 채널·템플릿 심사 — **`docs/SOLAPI_KAKAO_SETUP.md`**  
+3. Vercel env: `SOLAPI_*`, `SOLAPI_KAKAO_PF_ID`, `SOLAPI_KAKAO_TEMPLATE_ID`, `CRON_SECRET`  
+4. `/golden-time`에서 예약
+
 ### 참고
 
 - [공식 changelog](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically)

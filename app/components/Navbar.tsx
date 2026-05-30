@@ -271,7 +271,7 @@ export default function Navbar() {
                   onClick={() => setGender(g)}
                   className={`py-3 rounded-xl font-bold border ${
                     gender === g
-                      ? 'bg-[var(--brand)] border-[var(--brand)] text-white'
+                      ? 'bg-[var(--brand)] border-[var(--brand)] text-[var(--brand-on,#fff)]'
                       : 'bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-secondary)]'
                   }`}
                 >
@@ -296,10 +296,10 @@ export default function Navbar() {
         </div>
       )}
 
-      <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/95 backdrop-blur-md">
+      <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/90 backdrop-blur-xl shadow-[0_1px_0_rgba(31,26,20,0.04)]">
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-lg text-white font-black">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-lg text-[var(--brand-on,#fff)] font-black shadow-[var(--shadow-brand,0_4px_12px_rgba(4,214,32,0.25))]">
               B
             </span>
             <span className="hidden sm:inline text-lg font-black tracking-tight text-[var(--text-primary)] whitespace-nowrap">

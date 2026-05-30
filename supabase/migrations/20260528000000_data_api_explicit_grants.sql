@@ -34,6 +34,9 @@ grant select on public.feedback_requests to anon;
 grant select, insert, update, delete on public.feedback_requests to authenticated;
 grant select, insert, update, delete on public.feedback_requests to service_role;
 
+grant select, insert, update, delete on public.golden_time_reminders to authenticated;
+grant select, insert, update, delete on public.golden_time_reminders to service_role;
+
 -- uuid/serial 기본값용 시퀀스 (신규 프로젝트에서 INSERT 실패 방지)
 grant usage, select on all sequences in schema public to authenticated, service_role;
 

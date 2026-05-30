@@ -244,50 +244,50 @@ export default function Navbar() {
     <>
       {/* 🎁 전역 온보딩 모달 (z-[130] 격상) */}
       {showModal && user && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-slate-100 relative text-slate-900">
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[var(--text-primary)]/50 backdrop-blur-md p-4">
+          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-[var(--border)] relative text-[var(--text-primary)]">
             <div className="text-center space-y-3">
               <div className="text-4xl">🌱</div>
-              <h2 className="text-3xl font-black tracking-tight text-slate-900">반가워요!</h2>
-              <p className="text-slate-500 font-bold text-sm leading-relaxed">정보를 입력하고 빅루트를 시작해 보세요.</p>
+              <h2 className="text-3xl font-black tracking-tight">반가워요!</h2>
+              <p className="text-[var(--text-secondary)] font-bold text-sm leading-relaxed">정보를 입력하고 빅루트를 시작해 보세요.</p>
             </div>
             <div className="space-y-5">
-              <input type="text" placeholder="사용할 닉네임을 입력하세요" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-slate-200 outline-none font-black text-slate-900 placeholder:text-slate-400 text-base focus:bg-white focus:border-blue-500 transition-all" />
+              <input type="text" placeholder="사용할 닉네임을 입력하세요" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border)] outline-none font-black placeholder:text-[var(--text-muted)] text-base focus:bg-[var(--bg-surface)] focus:border-[var(--brand)] transition-all" />
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200'}`}>남성</button>
-                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border-slate-200'}`}>여성</button>
+                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-white shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)]'}`}>남성</button>
+                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-white shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)]'}`}>여성</button>
               </div>
             </div>
             <div className="space-y-3 pt-2">
-              <button onClick={saveProfile} className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg">설정 완료하기</button>
-              <button onClick={() => { setTempNickname(nickname); setShowModal(false); }} className="w-full text-center text-sm font-black text-slate-400 hover:text-slate-600 transition-colors py-1">나중에 할게요</button>
+              <button onClick={saveProfile} className="w-full py-5 bg-[var(--brand)] text-[var(--brand-on,#fff)] rounded-2xl font-black text-lg hover:bg-[var(--brand-hover)]">설정 완료하기</button>
+              <button onClick={() => { setTempNickname(nickname); setShowModal(false); }} className="w-full text-center text-sm font-black text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors py-1">나중에 할게요</button>
             </div>
           </div>
         </div>
       )}
 
       {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
-      <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-white/90 backdrop-blur-xl border-b border-slate-100 shadow-sm">
+      <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border)] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-10 h-10 bg-[#007AFF] rounded-xl flex items-center justify-center text-white font-black text-xl shrink-0">
+            <div className="w-10 h-10 bg-[var(--brand)] rounded-xl flex items-center justify-center text-[var(--brand-on,#fff)] font-black text-xl shrink-0">
               B
             </div>
-            <span className="hidden sm:inline text-xl sm:text-2xl font-[1000] tracking-tighter text-slate-900 whitespace-nowrap">
-              BIG<span className="text-[#007AFF]">ROOT</span>
+            <span className="hidden sm:inline text-xl sm:text-2xl font-[1000] tracking-tighter text-[var(--text-primary)] whitespace-nowrap">
+              BIG<span className="text-[var(--brand)]">ROOT</span>
             </span>
           </Link>
 
-          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-5 text-sm font-bold text-slate-500">
+          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-5 text-sm font-bold text-[var(--text-secondary)]">
             {NAV_PRIMARY.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`whitespace-nowrap hover:text-[#007AFF] transition-colors ${
+                className={`whitespace-nowrap hover:text-[var(--brand)] transition-colors ${
                   pathname === item.href
-                    ? 'text-[#007AFF]'
+                    ? 'text-[var(--brand)]'
                     : item.highlight
-                      ? 'text-blue-600'
+                      ? 'text-[var(--accent)]'
                       : ''
                 }`}
               >
@@ -306,7 +306,7 @@ export default function Navbar() {
                     type="button"
                     onClick={openNotifications}
                     aria-label="알림"
-                    className="p-2.5 bg-white border border-slate-200 hover:border-slate-400 rounded-xl shadow-sm text-base relative"
+                    className="p-2.5 bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--brand)] rounded-xl shadow-sm text-base relative"
                   >
                     🔔
                     {badgeLabel && (
@@ -317,25 +317,25 @@ export default function Navbar() {
                   </button>
 
                   {showNotiDropdown && (
-                    <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl z-[110] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center">
-                        <span className="font-black text-xs text-slate-800">최신 알림 센터</span>
+                    <div className="absolute right-0 mt-3 w-80 bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl rounded-2xl z-[110] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-2 border-b border-[var(--border)] flex justify-between items-center">
+                        <span className="font-black text-xs text-[var(--text-primary)]">최신 알림 센터</span>
                       </div>
-                      <div className="max-h-64 overflow-y-auto text-xs text-slate-900">
+                      <div className="max-h-64 overflow-y-auto text-xs text-[var(--text-primary)]">
                         {notifications.length === 0 ? (
-                          <p className="text-slate-400 text-center py-8 font-medium">알림이 없습니다. 🌱</p>
+                          <p className="text-[var(--text-muted)] text-center py-8 font-medium">알림이 없습니다. 🌱</p>
                         ) : (
                           notifications.map((noti) => (
                             <button
                               key={noti.id}
                               type="button"
                               onClick={() => handleNotificationClick(noti)}
-                              className={`w-full text-left p-3.5 border-b border-slate-50 last:border-0 flex gap-2 items-start hover:bg-slate-50 transition-colors ${!noti.is_read ? 'bg-blue-50/40' : ''}`}
+                              className={`w-full text-left p-3.5 border-b border-[var(--border)] last:border-0 flex gap-2 items-start hover:bg-[var(--bg-muted)] transition-colors ${!noti.is_read ? 'bg-[var(--brand-soft)]' : ''}`}
                             >
                               <span>{noti.type === 'comment' ? '💬' : '👍'}</span>
                               <div className="space-y-0.5 flex-1">
-                                <p className="text-slate-700 font-medium">
-                                  <span className="font-black text-slate-900">
+                                <p className="text-[var(--text-secondary)] font-medium">
+                                  <span className="font-black text-[var(--text-primary)]">
                                     {noti.actor?.nickname || '세입자'}
                                   </span>
                                   님이{' '}
@@ -343,7 +343,7 @@ export default function Navbar() {
                                     ? '댓글을 달았습니다.'
                                     : '내 글을 추천했습니다.'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 font-bold truncate max-w-[200px]">
+                                <p className="text-[10px] text-[var(--text-muted)] font-bold truncate max-w-[200px]">
                                   원문: {noti.posts?.title || '게시글'}
                                 </p>
                               </div>
@@ -358,7 +358,7 @@ export default function Navbar() {
                 {nickname ? (
                   <Link
                     href="/mypage"
-                    className="text-sm font-black text-slate-700 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 hover:border-blue-500 transition-all"
+                    className="text-sm font-black text-[var(--text-primary)] bg-[var(--bg-muted)] px-4 py-2.5 rounded-2xl border border-[var(--border)] hover:border-[var(--brand)] transition-all"
                   >
                     {nickname} 님
                   </Link>
@@ -366,7 +366,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => setShowModal(true)}
-                    className="text-xs font-black text-blue-500 bg-blue-50 px-4 py-2.5 rounded-2xl border border-blue-100 hover:bg-blue-100 transition-all"
+                    className="text-xs font-black text-[var(--brand)] bg-[var(--brand-soft)] px-4 py-2.5 rounded-2xl border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all"
                   >
                     🌱 닉네임 설정하기
                   </button>
@@ -374,7 +374,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => supabase.auth.signOut()}
-                  className="text-sm font-bold text-slate-400 hover:text-red-500 transition-colors"
+                  className="text-sm font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
                 >
                   로그아웃
                 </button>
@@ -383,7 +383,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={loginWithGoogle}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-slate-900 text-white rounded-2xl text-sm font-black hover:bg-[#007AFF] transition-all"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--text-primary)] text-white rounded-2xl text-sm font-black hover:bg-[var(--brand)] hover:text-[var(--brand-on,#fff)] transition-all"
               >
                 시작하기
               </button>
@@ -391,7 +391,7 @@ export default function Navbar() {
 
             <button
               type="button"
-              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-lg"
+              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-lg"
               aria-label="메뉴"
               onClick={() => setMenuOpen((o) => !o)}
             >
@@ -401,7 +401,7 @@ export default function Navbar() {
         </div>
 
         {menuOpen && (
-          <div className="xl:hidden border-t border-slate-100 bg-white max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div className="xl:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="p-4 space-y-1">
               {NAV_ALL.map((item) => (
                 <Link
@@ -409,8 +409,8 @@ export default function Navbar() {
                   href={item.href}
                   className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
                     pathname === item.href
-                      ? 'bg-blue-50 text-[#007AFF]'
-                      : 'text-slate-600 hover:bg-slate-50'
+                      ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
                   }`}
                 >
                   {item.label}
@@ -419,7 +419,7 @@ export default function Navbar() {
               {user && nickname && (
                 <Link
                   href="/mypage"
-                  className="block py-3 px-4 rounded-xl text-[15px] font-bold text-slate-800 border-t border-slate-100 mt-2"
+                  className="block py-3 px-4 rounded-xl text-[15px] font-bold text-[var(--text-primary)] border-t border-[var(--border)] mt-2"
                 >
                   {nickname} · 마이페이지
                 </Link>

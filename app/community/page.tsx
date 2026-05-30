@@ -237,7 +237,6 @@ function CommunityContent() {
           badge="커뮤니티"
           title="커뮤니티 광장"
           description="세입자들의 경험과 고민을 나누는 공간이에요."
-          showBrand={false}
         />
         <div className="flex justify-between items-end w-full pb-2 -mt-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -332,7 +331,7 @@ function CommunityContent() {
           />
           <button
             onClick={handleCreatePost}
-            className="w-full py-4 bg-[#007AFF] text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all"
+            className="w-full py-4 bg-[var(--brand)] text-white rounded-2xl font-black shadow-lg hover:bg-[var(--brand-hover)] transition-all"
           >
             게시물 올리기
           </button>

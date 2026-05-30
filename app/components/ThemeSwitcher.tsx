@@ -12,7 +12,7 @@ export default function ThemeSwitcher() {
       onClick={() => setTheme(value)}
       className={`px-3 py-2 rounded-full transition-colors ${
         theme === value
-          ? 'bg-[var(--brand)] text-white'
+          ? 'bg-[var(--brand)] text-[var(--brand-on,#fff)]'
           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
       }`}
     >

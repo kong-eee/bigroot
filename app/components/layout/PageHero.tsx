@@ -1,10 +1,7 @@
-import BrandTagline from './BrandTagline';
-
 type PageHeroProps = {
   badge?: string;
   title: React.ReactNode;
   description?: React.ReactNode;
-  showBrand?: boolean;
   children?: React.ReactNode;
 };
 
@@ -12,22 +9,14 @@ export default function PageHero({
   badge,
   title,
   description,
-  showBrand = true,
   children,
 }: PageHeroProps) {
   return (
-    <header className="text-center space-y-4 pb-8 sm:pb-10">
-      {showBrand && (
-        <div className="flex justify-center">
-          <BrandTagline compact />
-        </div>
-      )}
+    <header className="relative text-center space-y-5 pb-8 sm:pb-10">
       {badge && (
-        <span className="inline-block rounded-full border border-[var(--border)] bg-[var(--brand-soft)] px-4 py-1.5 text-xs font-bold text-[var(--brand)]">
-          {badge}
-        </span>
+        <span className="ui-badge ui-badge-brand">{badge}</span>
       )}
-      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-[var(--text-primary)]">
+      <h1 className="text-2xl sm:text-3xl lg:text-[2.5rem] font-black leading-tight tracking-tight text-[var(--text-primary)]">
         {title}
       </h1>
       {description && (

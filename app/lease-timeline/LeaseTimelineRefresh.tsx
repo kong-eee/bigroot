@@ -16,9 +16,9 @@ import { useLeaseProfile } from '@/lib/use-lease-profile';
 function StatusBadge({ status }: { status: TimelineEvent['status'] }) {
   const cls =
     status === 'done'
-      ? 'bg-slate-100 text-slate-500'
+      ? 'bg-[var(--bg-muted)] text-[var(--text-muted)]'
       : status === 'now'
-        ? 'bg-[var(--brand)] text-white'
+        ? 'bg-[var(--brand)] text-[var(--brand-on,#fff)]'
         : status === 'soon'
           ? 'bg-amber-100 text-amber-800'
           : 'bg-[var(--brand-soft)] text-[var(--brand)]';
@@ -208,7 +208,7 @@ export default function LeaseTimelineRefresh() {
                       ev.status === 'now'
                         ? 'bg-[var(--brand)] ring-4 ring-[var(--brand-soft)]'
                         : ev.status === 'done'
-                          ? 'bg-slate-300'
+                          ? 'bg-[var(--border-strong,var(--border))]'
                           : 'bg-[var(--brand-soft)]'
                     }`}
                   />

@@ -179,7 +179,6 @@ export default function FeedbackPage() {
               )}
             </>
           }
-          showBrand={false}
         />
 
         <div className="relative bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
@@ -188,7 +187,7 @@ export default function FeedbackPage() {
               <p className="font-black text-slate-700 mb-3">글쓰기는 로그인 + 닉네임 설정 후 가능해요</p>
               <Link
                 href="/"
-                className="px-5 py-2.5 bg-[#007AFF] text-white rounded-xl font-black text-sm"
+                className="px-5 py-2.5 bg-[var(--brand)] text-white rounded-xl font-black text-sm"
               >
                 홈에서 로그인하기
               </Link>
@@ -234,7 +233,7 @@ export default function FeedbackPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="px-6 py-3 bg-[#007AFF] text-white rounded-xl font-black text-sm hover:bg-blue-700"
+              className="px-6 py-3 bg-[var(--brand)] text-white rounded-xl font-black text-sm hover:bg-[var(--brand-hover)]"
             >
               등록하기
             </button>

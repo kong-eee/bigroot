@@ -575,7 +575,7 @@ export default function SafetyCheckPage() {
 
             <button
               onClick={handleCalculateSafety}
-              className="w-full py-5 bg-[#007AFF] text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-100 hover:bg-blue-600 transition-all active:scale-95"
+              className="w-full py-5 bg-[var(--brand)] text-white rounded-2xl font-black text-lg shadow-xl shadow-[var(--brand-soft)] hover:bg-[var(--brand-hover)] transition-all active:scale-95"
             >
               안전성 진단하기 ⚡
             </button>

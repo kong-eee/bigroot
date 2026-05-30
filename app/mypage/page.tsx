@@ -75,7 +75,7 @@ export default function MyPage() {
           );
         } else if (today >= startPeriod && today <= endPeriod) {
           setCurrentStatus(typeStr === '상가' ? '📢 지금이에요! 건물주에게 재계약/해지 통보하기' : '📢 지금이에요! 집주인에게 이사/갱신 통보하기');
-          setStatusColor('text-blue-400 bg-blue-500/10 border-blue-500/20');
+          setStatusColor('text-[var(--brand)] bg-[var(--brand)]/10 border-[var(--brand)]/20');
           setTipMessage(
             typeStr === '상가'
               ? '💡 상가 사장님 주목! 더 장사하고 싶다면 법적으로 총 10년간 보장받는 "계약갱신요구권"을 쓰겠다고 당당히 요구하시고, 나갈 예정이라면 지금 확실히 말해야 권리금 회수 기회(만기 6달 전부터 종료 시까지)를 완벽하게 보호받습니다.'
@@ -158,7 +158,7 @@ export default function MyPage() {
             
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-xs font-black text-blue-400 tracking-wider uppercase">Contract Timing</span>
+                <span className="text-xs font-black text-[var(--brand-soft)] tracking-wider uppercase">Contract Timing</span>
                 <h4 className="text-lg font-black mt-1">내 계약 골든타임</h4> 
               </div>
               {/* 주택/상가 뱃지 노출 */}
@@ -180,7 +180,7 @@ export default function MyPage() {
                     <p className="text-[11px] font-bold text-slate-400">
                       {propertyType === '상가' ? '건물주에게 통보해야 하는 기간 (만기 6~1달 전)' : '집주인에게 통보해야 하는 기간 (만기 6~2달 전)'}
                     </p>
-                    <p className="text-md font-black text-blue-400 mt-1">{windowStart} ~ {windowEnd}</p>
+                    <p className="text-md font-black text-[var(--brand-soft)] mt-1">{windowStart} ~ {windowEnd}</p>
                   </div>
                   <div className="border-t border-white/5 pt-3">
                     <p className="text-[11px] font-bold text-slate-400">확정 만기일</p>
@@ -192,7 +192,7 @@ export default function MyPage() {
                   {tipMessage}
                 </p>
 
-                <Link href="/lease-timeline" className="block text-center w-full py-3 bg-blue-600 hover:bg-blue-500 text-xs font-black rounded-xl transition-all">
+                <Link href="/lease-timeline" className="block text-center w-full py-3 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-xs font-black rounded-xl transition-all">
                   전체 타임라인 보기 📅
                 </Link>
                 <button onClick={() => setIsEditingDate(true)} className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all">
@@ -222,7 +222,7 @@ export default function MyPage() {
                 </div>
 
                 <div className="flex gap-2 pt-1">
-                  <button onClick={saveContractDate} className="flex-1 py-3 bg-[#007AFF] text-white font-black text-xs rounded-xl hover:bg-blue-600">설정 저장</button>
+                  <button onClick={saveContractDate} className="flex-1 py-3 bg-[var(--brand)] text-white font-black text-xs rounded-xl hover:bg-[var(--brand-hover)]">설정 저장</button>
                   {contractEndDate && <button onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); setPropertyTypeInput(propertyType); }} className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">취소</button>}
                 </div>
               </div>
@@ -268,7 +268,7 @@ export default function MyPage() {
                   <div key={post.id} className="p-5 bg-slate-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all flex flex-col justify-between md:flex-row md:items-center gap-4 group">
                     <div className="space-y-1 flex-1">
                       <span className="text-[10px] font-bold text-slate-400">{new Date(post.created_at).toLocaleDateString()}</span>
-                      <h4 className="font-black text-slate-900 text-base line-clamp-1 group-hover:text-[#007AFF] transition-colors">{post.title}</h4>
+                      <h4 className="font-black text-slate-900 text-base line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{post.title}</h4>
                       <p className="text-xs text-slate-500 font-medium line-clamp-1">{post.content}</p>
                     </div>
                     <div className="flex items-center gap-3 justify-end">
