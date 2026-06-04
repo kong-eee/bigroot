@@ -22,6 +22,7 @@ export const NAV_LEASE: NavLink[] = [
 
 /** 드롭다운: 더보기 */
 export const NAV_MORE: NavLink[] = [
+  { href: '/policy-feed', label: '청년·기금 피드', highlight: true },
   { href: '/feedback', label: '문의·요청' },
   { href: '/legal-ai', label: '근방 AI' },
   { href: '/rent-increase', label: '임대료진단' },

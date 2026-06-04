@@ -60,6 +60,7 @@ const GROUPS = [
     title: '정보 · 소통',
     subtitle: '권리와 경험을 연결',
     items: [
+      { href: '/policy-feed', title: '청년·기금 피드', desc: '지역 청년정책·금리 변동' },
       { href: '/rights-guide', title: '권리백과', desc: '세입자 권리 정리' },
       { href: '/community', title: '커뮤니티', desc: '경험 나누기' },
       { href: '/feedback', title: '문의·요청', desc: '기능 제안' },
