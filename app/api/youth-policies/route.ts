@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sidoCode = searchParams.get('sido') ?? '';
-  const scope = (searchParams.get('scope') ?? 'all') as YouthPolicyScope;
+  const scope = (searchParams.get('scope') ?? 'national') as YouthPolicyScope;
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   const pageSize = Math.min(50, Math.max(5, Number(searchParams.get('pageSize') ?? '20') || 20));
 
@@ -16,8 +16,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: 'sido 파라미터가 필요합니다.' }, { status: 400 });
   }
 
-  if (!['local', 'national', 'all'].includes(scope)) {
-    return NextResponse.json({ success: false, error: 'scope는 local|national|all 입니다.' }, { status: 400 });
+  if (!['local', 'national'].includes(scope)) {
+    return NextResponse.json({ success: false, error: 'scope는 local|national 입니다.' }, { status: 400 });
   }
 
   const youthRegionCode = getYouthApiCode(sidoCode);

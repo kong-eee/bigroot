@@ -24,12 +24,12 @@ YOUTH_CENTER_API_KEY=발급키여기에
 
 ## API (서버 프록시)
 
-`GET /api/youth-policies?sido=11&scope=all&page=1&pageSize=20`
+`GET /api/youth-policies?sido=11&scope=national&page=1&pageSize=20`
 
 | 파라미터 | 설명 |
 |----------|------|
 | `sido` | 행정 시·도 코드 (`11` 서울, `41` 경기, …) |
-| `scope` | `local` \| `national` \| `all` |
+| `scope` | `local` \| `national` (기본값 `national`) |
 | `page` | 페이지 (1부터) |
 | `pageSize` | 건수 (최대 50) |
 

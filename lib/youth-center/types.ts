@@ -1,4 +1,4 @@
-export type YouthPolicyScope = 'local' | 'national' | 'all';
+export type YouthPolicyScope = 'local' | 'national';
 
 export type YouthPolicyItem = {
   id: string;

@@ -96,14 +96,6 @@ function applyScopeFilter(
     );
   }
 
-  if (scope === 'all' && region) {
-    return items.filter(
-      (p) =>
-        isCentralItem(p) ||
-        policyMatchesSido(p, region.shortName, region.name)
-    );
-  }
-
   return items;
 }
 

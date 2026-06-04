@@ -11,14 +11,22 @@ import YouthPolicyCard from './YouthPolicyCard';
 const PAGE_SIZE = 5;
 
 const SCOPES: { id: YouthPolicyScope; label: string; desc: string }[] = [
-  { id: 'all', label: '전체', desc: '내 지역 + 전국(중앙) 정책' },
-  { id: 'local', label: '내 지역', desc: '선택한 시·도·지자체 사업' },
   { id: 'national', label: '전국', desc: '중앙부처·전국 단위 사업' },
+  { id: 'local', label: '내 지역', desc: '선택한 시·도·지자체 사업' },
 ];
+
+function loadingLabel(scope: YouthPolicyScope, regionName?: string): string {
+  if (scope === 'local') {
+    return regionName
+      ? `${regionName} 지역 정책을 불러오는 중입니다. 잠시만 기다려 주세요.`
+      : '지역 정책을 불러오는 중입니다. 잠시만 기다려 주세요.';
+  }
+  return '불러오는 중…';
+}
 
 export default function YouthPolicyTab() {
   const [sidoCode, setSidoCode] = useState('11');
-  const [scope, setScope] = useState<YouthPolicyScope>('all');
+  const [scope, setScope] = useState<YouthPolicyScope>('national');
   const [items, setItems] = useState<YouthPolicyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +43,7 @@ export default function YouthPolicyTab() {
 
   const region = getYouthRegionBySido(sidoCode);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const waitMessage = loadingLabel(scope, region?.name);
 
   const load = useCallback(
     async (nextPage: number) => {
@@ -75,8 +84,23 @@ export default function YouthPolicyTab() {
   };
 
   const selectRegion = (code: string) => {
+    if (code === sidoCode) return;
     setSidoCode(code);
     savePolicyRegion(code);
+    if (scope === 'local') {
+      setItems([]);
+      setTotalCount(0);
+      setError('');
+    }
+  };
+
+  const selectScope = (next: YouthPolicyScope) => {
+    if (next === scope) return;
+    setScope(next);
+    if (next === 'local') {
+      setItems([]);
+      setTotalCount(0);
+    }
   };
 
   return (
@@ -116,8 +140,8 @@ export default function YouthPolicyTab() {
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setScope(s.id)}
-                className={`flex-1 min-w-[100px] px-4 py-3 rounded-xl border text-left transition-colors ${
+                onClick={() => selectScope(s.id)}
+                className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl border text-left transition-colors ${
                   scope === s.id
                     ? 'border-[var(--brand)] bg-[var(--brand-soft)]'
                     : 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]'
@@ -155,16 +179,35 @@ export default function YouthPolicyTab() {
             </p>
           )}
 
-          {loading && items.length === 0 ? (
-            <p className="text-center py-16 font-bold text-[var(--text-muted)]">불러오는 중…</p>
-          ) : items.length === 0 ? (
+          {loading && scope === 'local' && (
+            <div
+              className="ui-card p-10 text-center border-[var(--brand)]/30 bg-[var(--brand-soft)]/40"
+              role="status"
+              aria-live="polite"
+            >
+              <p className="font-black text-[var(--text-primary)]">{waitMessage}</p>
+              <p className="text-sm text-[var(--text-muted)] mt-2">
+                지역별로 정책을 모으는 데 시간이 걸릴 수 있습니다.
+              </p>
+            </div>
+          )}
+
+          {loading && scope === 'national' && items.length === 0 && (
+            <p className="text-center py-16 font-bold text-[var(--text-muted)]">{waitMessage}</p>
+          )}
+
+          {!loading && items.length === 0 && (
             <div className="ui-card p-10 text-center">
               <p className="font-black text-[var(--text-primary)]">표시할 정책이 없습니다.</p>
               <p className="text-sm text-[var(--text-muted)] mt-2">
-                다른 범위(전체/전국)를 선택하거나 지역을 바꿔 보세요.
+                {scope === 'local'
+                  ? '다른 지역을 선택하거나 전국 탭에서 중앙 정책을 확인해 보세요.'
+                  : '내 지역 탭에서 선택한 시·도 사업을 확인해 보세요.'}
               </p>
             </div>
-          ) : (
+          )}
+
+          {!loading && items.length > 0 && (
             <>
               <ul className="space-y-4">
                 {items.map((p) => (
@@ -182,8 +225,8 @@ export default function YouthPolicyTab() {
             </>
           )}
 
-          {loading && items.length > 0 && (
-            <p className="text-center text-xs font-bold text-[var(--text-muted)]">불러오는 중…</p>
+          {loading && scope === 'national' && items.length > 0 && (
+            <p className="text-center text-xs font-bold text-[var(--text-muted)]">{waitMessage}</p>
           )}
         </div>
       </div>
