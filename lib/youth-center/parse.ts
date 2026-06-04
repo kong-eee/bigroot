@@ -136,9 +136,27 @@ export function mapJsonPolicy(row: Record<string, unknown>): {
   const title = textOf(row.plcyNm);
   const summary = textOf(row.plcyExplnCn);
   const support = textOf(row.plcySprtCn);
-  const orgType = textOf(row.lclsfNm) || textOf(row.mclsfNm);
-  const orgName = textOf(row.operInstCdNm) || textOf(row.sprvsnInstCdNm);
-  const regionLabel = orgName;
+  const providerGroup = textOf(row.pvsnInstGroupCd);
+  const orgType =
+    providerGroup === '0054001'
+      ? '중앙부처'
+      : providerGroup === '0054002'
+        ? '지자체'
+        : textOf(row.lclsfNm) || textOf(row.mclsfNm);
+  const orgName =
+    textOf(row.operInstCdNm) ||
+    textOf(row.sprvsnInstCdNm) ||
+    textOf(row.rgtrInstCdNm);
+  const regionLabel = [
+    textOf(row.plcyNm),
+    textOf(row.sprvsnInstCdNm),
+    textOf(row.operInstCdNm),
+    textOf(row.rgtrUpInstCdNm),
+    textOf(row.rgtrHghrkInstCdNm),
+    textOf(row.rgtrInstCdNm),
+  ]
+    .filter(Boolean)
+    .join(' ');
   const period =
     textOf(row.bizPrdEtcCn) ||
     [textOf(row.bizPrdBgngYmd), textOf(row.bizPrdEndYmd)].filter(Boolean).join(' ~ ') ||

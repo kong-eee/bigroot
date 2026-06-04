@@ -10,6 +10,8 @@ import type { YouthPolicyItem, YouthPolicyListResult, YouthPolicyScope } from '.
 /** 온통청년 청년정책 API (2025+ JSON, apiKeyNm 파라미터) */
 const API_BASE = 'https://www.youthcenter.go.kr/go/ythip/getPlcy';
 const HOUSING_CATEGORY = '주거';
+const API_BATCH_SIZE = 50;
+const MAX_SCAN_PAGES = 60;
 
 export function resolveYouthCenterApiKey(): string | null {
   const key =
@@ -30,7 +32,13 @@ type FetchParams = {
   scope: YouthPolicyScope;
 };
 
-async function requestPolicies(page: number, pageSize: number): Promise<{
+type RequestOptions = {
+  page: number;
+  pageSize: number;
+  srchPolyBizSecd?: string;
+};
+
+async function requestPolicies(options: RequestOptions): Promise<{
   items: Record<string, unknown>[];
   totalCount: number;
 }> {
@@ -41,11 +49,15 @@ async function requestPolicies(page: number, pageSize: number): Promise<{
 
   const qs = new URLSearchParams({
     apiKeyNm: key,
-    pageNum: String(page),
-    pageSize: String(Math.min(pageSize, 100)),
+    pageNum: String(options.page),
+    pageSize: String(Math.min(options.pageSize, 100)),
     rtnType: 'json',
     lclsfNm: HOUSING_CATEGORY,
   });
+
+  if (options.srchPolyBizSecd) {
+    qs.set('srchPolyBizSecd', options.srchPolyBizSecd);
+  }
 
   const res = await fetch(`${API_BASE}?${qs.toString()}`, {
     cache: 'no-store',
@@ -60,6 +72,11 @@ async function requestPolicies(page: number, pageSize: number): Promise<{
   return parseYouthPolicyJson(body);
 }
 
+function isCentralItem(item: YouthPolicyItem): boolean {
+  if (item.orgType === '중앙부처') return true;
+  return isCentralPolicy(item.orgType, item.regionLabel, item.orgName);
+}
+
 function applyScopeFilter(
   items: YouthPolicyItem[],
   scope: YouthPolicyScope,
@@ -68,13 +85,13 @@ function applyScopeFilter(
   const region = sidoCode ? getYouthRegionBySido(sidoCode) : undefined;
 
   if (scope === 'national') {
-    return items.filter((p) => isCentralPolicy(p.orgType, p.regionLabel, p.orgName));
+    return items.filter((p) => isCentralItem(p));
   }
 
   if (scope === 'local' && region) {
     return items.filter(
       (p) =>
-        !isCentralPolicy(p.orgType, p.regionLabel, p.orgName) &&
+        !isCentralItem(p) &&
         policyMatchesSido(p, region.shortName, region.name)
     );
   }
@@ -82,7 +99,7 @@ function applyScopeFilter(
   if (scope === 'all' && region) {
     return items.filter(
       (p) =>
-        isCentralPolicy(p.orgType, p.regionLabel, p.orgName) ||
+        isCentralItem(p) ||
         policyMatchesSido(p, region.shortName, region.name)
     );
   }
@@ -90,31 +107,73 @@ function applyScopeFilter(
   return items;
 }
 
-async function fetchPolicyPage(params: FetchParams): Promise<YouthPolicyListResult> {
+function dedupePolicies(items: YouthPolicyItem[]): YouthPolicyItem[] {
+  const seen = new Set<string>();
+  const out: YouthPolicyItem[] = [];
+  for (const item of items) {
+    const key = item.id || item.title;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+/** API 전체를 훑은 뒤 scope·지역 필터를 적용한 실제 건수·페이지 슬라이스 */
+async function scanFilteredPolicies(
+  params: FetchParams,
+  youthApiCode?: string
+): Promise<{ items: YouthPolicyItem[]; totalCount: number }> {
+  const useRegionParam = params.scope !== 'national' && Boolean(youthApiCode);
+  const allFiltered: YouthPolicyItem[] = [];
+  let apiPage = 1;
+  let apiTotal = Infinity;
+
+  while (apiPage <= MAX_SCAN_PAGES) {
+    const { items: raw, totalCount } = await requestPolicies({
+      page: apiPage,
+      pageSize: API_BATCH_SIZE,
+      srchPolyBizSecd: useRegionParam ? youthApiCode : undefined,
+    });
+
+    apiTotal = totalCount;
+
+    let mapped = raw.map(mapJsonPolicy).filter((p) => p.title);
+    mapped = applyScopeFilter(mapped, params.scope, params.sidoCode);
+    allFiltered.push(...mapped);
+
+    if (raw.length < API_BATCH_SIZE || apiPage * API_BATCH_SIZE >= apiTotal) {
+      break;
+    }
+    apiPage += 1;
+  }
+
+  const unique = dedupePolicies(allFiltered);
+  const totalCount = unique.length;
+  const start = (params.page - 1) * params.pageSize;
+  const items = unique.slice(start, start + params.pageSize);
+
+  return { items, totalCount };
+}
+
+async function fetchPolicyPage(
+  params: FetchParams,
+  youthApiCode?: string
+): Promise<YouthPolicyListResult> {
   const key = resolveYouthCenterApiKey();
   if (!key) {
     return { ...demoPolicies(params), source: 'demo' };
   }
 
-  const fetchSize =
-    params.scope === 'local' || params.scope === 'all'
-      ? Math.min(params.pageSize * 4, 100)
-      : params.pageSize;
-
-  const { items: raw, totalCount } = await requestPolicies(params.page, fetchSize);
-
-  let mapped = raw.map(mapJsonPolicy).filter((p) => p.title);
-  mapped = applyScopeFilter(mapped, params.scope, params.sidoCode);
-  const items = mapped.slice(0, params.pageSize);
-
-  const hasMore = params.page * fetchSize < totalCount || mapped.length > items.length;
+  const { items, totalCount } = await scanFilteredPolicies(params, youthApiCode);
+  const totalPages = Math.max(1, Math.ceil(totalCount / params.pageSize));
 
   return {
     items,
     page: params.page,
     pageSize: params.pageSize,
     totalCount,
-    hasMore,
+    hasMore: params.page < totalPages,
     source: 'api',
   };
 }
@@ -129,47 +188,15 @@ export async function fetchYouthPolicies(options: {
   const page = options.page ?? 1;
   const pageSize = options.pageSize ?? 20;
 
-  if (options.scope === 'all') {
-    const [localRes, nationalRes] = await Promise.all([
-      fetchPolicyPage({
-        page,
-        pageSize: Math.ceil(pageSize / 2),
-        sidoCode: options.sidoCode,
-        scope: 'local',
-      }),
-      fetchPolicyPage({
-        page,
-        pageSize: Math.ceil(pageSize / 2),
-        sidoCode: options.sidoCode,
-        scope: 'national',
-      }),
-    ]);
-
-    const seen = new Set<string>();
-    const merged: YouthPolicyItem[] = [];
-    for (const item of [...localRes.items, ...nationalRes.items]) {
-      const dedupeKey = item.id || item.title;
-      if (seen.has(dedupeKey)) continue;
-      seen.add(dedupeKey);
-      merged.push(item);
-    }
-
-    return {
-      items: merged.slice(0, pageSize),
+  return fetchPolicyPage(
+    {
       page,
       pageSize,
-      totalCount: localRes.totalCount + nationalRes.totalCount,
-      hasMore: localRes.hasMore || nationalRes.hasMore,
-      source: localRes.source === 'api' || nationalRes.source === 'api' ? 'api' : 'demo',
-    };
-  }
-
-  return fetchPolicyPage({
-    page,
-    pageSize,
-    sidoCode: options.sidoCode,
-    scope: options.scope,
-  });
+      sidoCode: options.sidoCode,
+      scope: options.scope,
+    },
+    options.youthRegionCode
+  );
 }
 
 function demoPolicies(params: FetchParams): Omit<YouthPolicyListResult, 'source'> {
@@ -200,18 +227,24 @@ function demoPolicies(params: FetchParams): Omit<YouthPolicyListResult, 'source'
     },
   ];
 
-  const filtered =
-    params.scope === 'national'
-      ? demos.filter((d) => d.orgType.includes('중앙'))
-      : params.scope === 'local'
-        ? demos.filter((d) => !d.orgType.includes('중앙'))
-        : demos;
+  const region = params.sidoCode ? getYouthRegionBySido(params.sidoCode) : undefined;
+  const filtered = applyScopeFilter(demos, params.scope, params.sidoCode).map((d) => {
+    if (params.scope !== 'local' || !region) return d;
+    return {
+      ...d,
+      regionLabel: region.name,
+      orgName: `${region.name} (예시)`,
+    };
+  });
+
+  const start = (params.page - 1) * params.pageSize;
+  const items = filtered.slice(start, start + params.pageSize);
 
   return {
-    items: filtered,
+    items,
     page: params.page,
     pageSize: params.pageSize,
     totalCount: filtered.length,
-    hasMore: false,
+    hasMore: start + items.length < filtered.length,
   };
 }

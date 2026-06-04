@@ -148,9 +148,10 @@ export default function YouthPolicyTab() {
             합니다.
           </p>
 
-          {totalCount > 0 && (
+          {!loading && totalCount > 0 && (
             <p className="text-xs font-bold text-[var(--text-secondary)]">
               총 {totalCount.toLocaleString('ko-KR')}건 · 페이지당 {PAGE_SIZE}건
+              {totalPages > 1 && ` · ${totalPages}페이지`}
             </p>
           )}
 
@@ -170,12 +171,14 @@ export default function YouthPolicyTab() {
                   <YouthPolicyCard key={`${p.id}-${p.title}`} policy={p} />
                 ))}
               </ul>
-              <PolicyPagination
-                page={page}
-                totalPages={totalPages}
-                loading={loading}
-                onPageChange={goToPage}
-              />
+              {totalPages > 1 && (
+                <PolicyPagination
+                  page={page}
+                  totalPages={totalPages}
+                  loading={loading}
+                  onPageChange={goToPage}
+                />
+              )}
             </>
           )}
 
