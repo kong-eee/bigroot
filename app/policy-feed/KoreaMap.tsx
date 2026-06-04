@@ -30,7 +30,7 @@ function regionName(sidoCode: string): string {
 
 function labelBadgeSize(text: string): { w: number; h: number } {
   const len = text.length;
-  return { w: len <= 2 ? 30 : 36, h: 18 };
+  return { w: len <= 2 ? 38 : 44, h: 22 };
 }
 
 function MapLabelBadge({
@@ -45,7 +45,7 @@ function MapLabelBadge({
   emphasized: boolean;
 }) {
   const { w, h } = labelBadgeSize(text);
-  const fontSize = emphasized ? 12 : 11;
+  const fontSize = emphasized ? 14 : 13;
 
   return (
     <g transform={`translate(${x}, ${y})`} pointerEvents="none">
