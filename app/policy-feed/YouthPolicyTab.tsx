@@ -9,6 +9,19 @@ import PolicyPagination from './PolicyPagination';
 import YouthPolicyCard from './YouthPolicyCard';
 
 const PAGE_SIZE = 5;
+const MAX_FETCH_RETRIES = 3;
+const RETRY_BASE_MS = 1200;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableFetchError(message: string, status?: number): boolean {
+  if (status === 502 || status === 503 || status === 504) return true;
+  return /fetch failed|failed to fetch|network|timeout|aborted|socket|ECONNRESET/i.test(
+    message
+  );
+}
 
 const SCOPES: { id: YouthPolicyScope; label: string; desc: string }[] = [
   { id: 'national', label: '전국', desc: '중앙부처·전국 단위 사업' },
@@ -33,6 +46,7 @@ export default function YouthPolicyTab() {
   const [notice, setNotice] = useState('');
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     const saved = getSavedPolicyRegion();
@@ -49,25 +63,61 @@ export default function YouthPolicyTab() {
     async (nextPage: number) => {
       setLoading(true);
       setError('');
-      try {
-        const res = await fetch(
-          `/api/youth-policies?sido=${sidoCode}&scope=${scope}&page=${nextPage}&pageSize=${PAGE_SIZE}`
-        );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.success) {
-          throw new Error(data.error ?? '목록을 불러오지 못했습니다.');
+      setRetrying(false);
+
+      let lastMessage = '목록을 불러오지 못했습니다.';
+
+      for (let attempt = 0; attempt < MAX_FETCH_RETRIES; attempt++) {
+        if (attempt > 0) {
+          setRetrying(true);
+          setError('');
+          await sleep(RETRY_BASE_MS * attempt);
         }
-        setNotice(data.message ?? '');
-        setTotalCount(data.totalCount ?? 0);
-        setPage(nextPage);
-        setItems(data.items ?? []);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '오류가 발생했습니다.');
-        setItems([]);
-        setTotalCount(0);
-      } finally {
-        setLoading(false);
+
+        try {
+          const res = await fetch(
+            `/api/youth-policies?sido=${sidoCode}&scope=${scope}&page=${nextPage}&pageSize=${PAGE_SIZE}`
+          );
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.success) {
+            lastMessage = data.error ?? '목록을 불러오지 못했습니다.';
+            if (isRetryableFetchError(lastMessage, res.status) && attempt < MAX_FETCH_RETRIES - 1) {
+              continue;
+            }
+            throw new Error(lastMessage);
+          }
+          setNotice(data.message ?? '');
+          setTotalCount(data.totalCount ?? 0);
+          setPage(nextPage);
+          setItems(data.items ?? []);
+          setRetrying(false);
+          setLoading(false);
+          return;
+        } catch (e) {
+          const message =
+            e instanceof Error ? e.message : '오류가 발생했습니다.';
+          lastMessage = message;
+          if (isRetryableFetchError(message) && attempt < MAX_FETCH_RETRIES - 1) {
+            continue;
+          }
+          setError(
+            attempt > 0
+              ? `${message} (자동 재시도 후에도 불러오지 못했습니다.)`
+              : message
+          );
+          setItems([]);
+          setTotalCount(0);
+          setRetrying(false);
+          setLoading(false);
+          return;
+        }
       }
+
+      setError(lastMessage);
+      setItems([]);
+      setTotalCount(0);
+      setRetrying(false);
+      setLoading(false);
     },
     [sidoCode, scope]
   );
@@ -161,7 +211,17 @@ export default function YouthPolicyTab() {
             </p>
           )}
 
-          {error && (
+          {retrying && (
+            <p
+              className="text-sm font-bold text-[var(--accent)] bg-[var(--accent-soft)] border border-[var(--border)] rounded-xl p-4"
+              role="status"
+              aria-live="polite"
+            >
+              연결이 불안정합니다. 잠시 후 자동으로 다시 불러옵니다…
+            </p>
+          )}
+
+          {error && !retrying && (
             <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl p-4">
               {error}
             </p>
@@ -179,15 +239,19 @@ export default function YouthPolicyTab() {
             </p>
           )}
 
-          {loading && scope === 'local' && (
+          {(loading || retrying) && scope === 'local' && (
             <div
               className="ui-card p-10 text-center border-[var(--brand)]/30 bg-[var(--brand-soft)]/40"
               role="status"
               aria-live="polite"
             >
-              <p className="font-black text-[var(--text-primary)]">{waitMessage}</p>
+              <p className="font-black text-[var(--text-primary)]">
+                {retrying ? '다시 불러오는 중입니다. 잠시만 기다려 주세요.' : waitMessage}
+              </p>
               <p className="text-sm text-[var(--text-muted)] mt-2">
-                지역별로 정책을 모으는 데 시간이 걸릴 수 있습니다.
+                {retrying
+                  ? '일시적인 연결 오류일 수 있습니다.'
+                  : '지역별로 정책을 모으는 데 시간이 걸릴 수 있습니다.'}
               </p>
             </div>
           )}
@@ -196,7 +260,7 @@ export default function YouthPolicyTab() {
             <p className="text-center py-16 font-bold text-[var(--text-muted)]">{waitMessage}</p>
           )}
 
-          {!loading && items.length === 0 && (
+          {!loading && !retrying && items.length === 0 && !error && (
             <div className="ui-card p-10 text-center">
               <p className="font-black text-[var(--text-primary)]">표시할 정책이 없습니다.</p>
               <p className="text-sm text-[var(--text-muted)] mt-2">

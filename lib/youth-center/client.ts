@@ -12,6 +12,11 @@ const API_BASE = 'https://www.youthcenter.go.kr/go/ythip/getPlcy';
 const HOUSING_CATEGORY = '주거';
 const API_BATCH_SIZE = 50;
 const MAX_SCAN_PAGES = 60;
+const UPSTREAM_MAX_RETRIES = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function resolveYouthCenterApiKey(): string | null {
   const key =
@@ -38,7 +43,10 @@ type RequestOptions = {
   srchPolyBizSecd?: string;
 };
 
-async function requestPolicies(options: RequestOptions): Promise<{
+async function requestPolicies(
+  options: RequestOptions,
+  attempt = 0
+): Promise<{
   items: Record<string, unknown>[];
   totalCount: number;
 }> {
@@ -59,17 +67,26 @@ async function requestPolicies(options: RequestOptions): Promise<{
     qs.set('srchPolyBizSecd', options.srchPolyBizSecd);
   }
 
-  const res = await fetch(`${API_BASE}?${qs.toString()}`, {
-    cache: 'no-store',
-    headers: { Accept: 'application/json' },
-  });
+  try {
+    const res = await fetch(`${API_BASE}?${qs.toString()}`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
 
-  if (!res.ok) {
-    throw new Error(`온통청년 API 오류 (HTTP ${res.status})`);
+    if (!res.ok) {
+      throw new Error(`온통청년 API 오류 (HTTP ${res.status})`);
+    }
+
+    const body = await res.text();
+    return parseYouthPolicyJson(body);
+  } catch (e) {
+    if (attempt < UPSTREAM_MAX_RETRIES - 1) {
+      await sleep(800 * (attempt + 1));
+      return requestPolicies(options, attempt + 1);
+    }
+    const message = e instanceof Error ? e.message : '온통청년 API 요청 실패';
+    throw new Error(message.includes('fetch') ? 'fetch failed' : message);
   }
-
-  const body = await res.text();
-  return parseYouthPolicyJson(body);
 }
 
 function isCentralItem(item: YouthPolicyItem): boolean {

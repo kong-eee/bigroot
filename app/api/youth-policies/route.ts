@@ -4,6 +4,7 @@ import { getYouthApiCode } from '@/lib/youth-center/regions';
 import type { YouthPolicyScope } from '@/lib/youth-center/types';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

@@ -12,6 +12,10 @@ export default function YouthPolicyCard({ policy }: YouthPolicyCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const hasDetail = Boolean(policy.support || policy.orgName || policy.period);
 
+  const toggleDetail = () => {
+    if (hasDetail) setDetailOpen((v) => !v);
+  };
+
   return (
     <li className="ui-card p-5 sm:p-6">
       <div className="flex flex-wrap gap-2 mb-2">
@@ -23,25 +27,37 @@ export default function YouthPolicyCard({ policy }: YouthPolicyCardProps) {
         )}
       </div>
 
-      <h3 className="text-base sm:text-lg font-black leading-snug text-[var(--text-primary)]">
-        {policy.title}
-      </h3>
-
-      {policy.summary && (
-        <p className="mt-2 text-sm font-medium text-[var(--text-secondary)] leading-relaxed line-clamp-3">
-          {policy.summary}
-        </p>
-      )}
-
-      {hasDetail && (
+      {hasDetail ? (
         <button
           type="button"
-          onClick={() => setDetailOpen((v) => !v)}
-          className="mt-3 text-xs font-bold text-[var(--text-primary)] underline-offset-2 hover:underline"
+          onClick={toggleDetail}
+          className="w-full text-left rounded-xl -mx-1 px-1 py-1 transition-colors hover:bg-[var(--bg-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"
           aria-expanded={detailOpen}
+          aria-label={detailOpen ? '상세 내용 접기' : '상세 내용 펼치기'}
         >
-          {detailOpen ? '상세 접기' : '지원 대상·지원 내용 보기'}
+          <h3 className="text-base sm:text-lg font-black leading-snug text-[var(--text-primary)]">
+            {policy.title}
+          </h3>
+          {policy.summary && (
+            <p className="mt-2 text-sm font-medium text-[var(--text-secondary)] leading-relaxed line-clamp-3">
+              {policy.summary}
+            </p>
+          )}
+          <p className="mt-2 text-[11px] font-bold text-[var(--text-muted)]">
+            {detailOpen ? '▲ 접기' : '▼ 제목·요약을 눌러 지원 대상·내용 보기'}
+          </p>
         </button>
+      ) : (
+        <>
+          <h3 className="text-base sm:text-lg font-black leading-snug text-[var(--text-primary)]">
+            {policy.title}
+          </h3>
+          {policy.summary && (
+            <p className="mt-2 text-sm font-medium text-[var(--text-secondary)] leading-relaxed line-clamp-3">
+              {policy.summary}
+            </p>
+          )}
+        </>
       )}
 
       {detailOpen && hasDetail && (
@@ -87,6 +103,7 @@ export default function YouthPolicyCard({ policy }: YouthPolicyCardProps) {
           target="_blank"
           rel="noopener noreferrer"
           className="inline-block mt-3 text-xs font-bold text-[var(--brand)] hover:underline"
+          onClick={(e) => e.stopPropagation()}
         >
           온통청년에서 보기 →
         </Link>
