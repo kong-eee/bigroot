@@ -1,4 +1,4 @@
-import { STATIC_SIDO_LIST } from '@/lib/korea-sido';
+import { getSidoShortLabel, STATIC_SIDO_LIST } from '@/lib/korea-sido';
 
 /** 온통청년 API srchPolyBizSecd (시·도) */
 export const YOUTH_SIDO_API_CODE: Record<string, string> = {
@@ -32,7 +32,7 @@ export type YouthSidoRegion = {
 export const YOUTH_SIDO_REGIONS: YouthSidoRegion[] = STATIC_SIDO_LIST.map((s) => ({
   sidoCode: s.code,
   name: s.name,
-  shortName: s.name.replace(/특별자치시|특별자치도|광역시|특별시|도$/g, '').trim(),
+  shortName: getSidoShortLabel(s.code),
   youthApiCode: YOUTH_SIDO_API_CODE[s.code] ?? '',
 }));
 

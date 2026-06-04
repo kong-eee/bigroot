@@ -9,11 +9,16 @@
 
 1. [온통청년](https://www.youthcenter.go.kr) 회원가입
 2. 마이페이지 → **오픈(OPEN) API** → 인증키 신청·승인
-3. `.env.local`에 추가:
+3. 환경 변수에 추가:
 
 ```env
 YOUTH_CENTER_API_KEY=발급키여기에
 ```
+
+- **로컬:** `.env.local` (git에 올리지 않음)
+- **Vercel 배포 (`bigroot.vercel.app` 등):** [Vercel 대시보드](https://vercel.com) → 프로젝트 → **Settings** → **Environment Variables** → `YOUTH_CENTER_API_KEY` 추가 → **Production** 체크 → 저장 후 **Redeploy**
+
+`.env.local`만 설정하면 배포 사이트에는 키가 전달되지 않습니다.
 
 키가 없으면 예시 데이터 2건이 표시됩니다.
 

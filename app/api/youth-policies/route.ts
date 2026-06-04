@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchYouthPolicies } from '@/lib/youth-center/client';
+import { fetchYouthPolicies, isYouthCenterApiConfigured } from '@/lib/youth-center/client';
 import { getYouthApiCode } from '@/lib/youth-center/regions';
 import type { YouthPolicyScope } from '@/lib/youth-center/types';
 
@@ -31,13 +31,19 @@ export async function GET(request: Request) {
       pageSize,
     });
 
+    const keyConfigured = isYouthCenterApiConfigured();
+
     return NextResponse.json({
       success: true,
       ...result,
-      configured: result.source === 'api',
+      configured: keyConfigured && result.source === 'api',
       message:
         result.source === 'demo'
-          ? 'YOUTH_CENTER_API_KEY가 없어 예시 데이터를 표시합니다. 온통청년에서 키를 발급해 .env.local에 설정하세요.'
+          ? keyConfigured
+            ? '온통청년 API 연결에 실패해 예시 데이터를 표시합니다. 잠시 후 다시 시도하거나 키 승인 상태를 확인하세요.'
+            : process.env.VERCEL === '1'
+              ? '서버에 YOUTH_CENTER_API_KEY가 없습니다. Vercel 대시보드 → Project → Settings → Environment Variables에 키를 추가한 뒤 재배포하세요. (로컬은 .env.local)'
+              : 'YOUTH_CENTER_API_KEY가 없어 예시 데이터를 표시합니다. 온통청년에서 키를 발급해 .env.local에 설정하세요.'
           : undefined,
     });
   } catch (e) {

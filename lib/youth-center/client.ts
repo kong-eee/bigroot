@@ -12,9 +12,15 @@ const API_BASE = 'https://www.youthcenter.go.kr/go/ythip/getPlcy';
 const HOUSING_CATEGORY = '주거';
 
 export function resolveYouthCenterApiKey(): string | null {
-  const key = process.env.YOUTH_CENTER_API_KEY?.trim();
-  if (!key || key.includes('여기에')) return null;
+  const key =
+    process.env.YOUTH_CENTER_API_KEY?.trim() ??
+    process.env.ONTONG_YOUTH_API_KEY?.trim();
+  if (!key || key.includes('여기에') || key === '발급받은_인증키') return null;
   return key;
+}
+
+export function isYouthCenterApiConfigured(): boolean {
+  return resolveYouthCenterApiKey() != null;
 }
 
 type FetchParams = {
