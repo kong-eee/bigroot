@@ -152,7 +152,7 @@ export default function LoanRateTab() {
           <p className="font-black">표시할 금리가 없습니다.</p>
           <p className="text-sm text-[var(--text-muted)] mt-2">
             {configured
-              ? '해당 분류 데이터가 비어 있거나 API 응답 형식이 바뀌었을 수 있습니다.'
+              ? '잠시 후 다시 불러오기를 눌러 보세요. 적격대출 API는 공공데이터 서버 오류 시 비어 있을 수 있습니다.'
               : '공공데이터포털 인증키를 설정한 뒤 HF API 활용신청을 확인해 주세요.'}
           </p>
         </div>

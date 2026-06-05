@@ -6,7 +6,7 @@ import {
   fetchRentLoanRates,
   isHfApiConfigured,
 } from './hf-client';
-import type { LoanRatesResult } from './types';
+import type { LoanRateItem, LoanRatesResult } from './types';
 
 export type { LoanRateCategory, LoanRateItem, LoanRatesResult, BokBaseRate } from './types';
 
@@ -24,32 +24,30 @@ export async function fetchLoanRatesBundle(): Promise<LoanRatesResult> {
     };
   }
 
-  const results = await Promise.allSettled([
-    fetchDidimdolRates(),
-    fetchRentLoanRates(),
-    fetchConformingRates(),
-  ]);
-
   const labels = ['디딤돌', '전세자금', '적격대출'] as const;
   const warnings: string[] = [];
+  const buckets: LoanRateItem[][] = [[], [], []];
 
-  const didimdol = results[0].status === 'fulfilled' ? results[0].value : [];
-  const rent = results[1].status === 'fulfilled' ? results[1].value : [];
-  const conforming = results[2].status === 'fulfilled' ? results[2].value : [];
-
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+  const fetchers = [fetchDidimdolRates, fetchRentLoanRates, fetchConformingRates] as const;
+  for (let i = 0; i < fetchers.length; i++) {
+    try {
+      buckets[i] = await fetchers[i]();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       warnings.push(`${labels[i]}: ${msg}`);
     }
-  });
+  }
 
+  const [didimdol, rent, conforming] = buckets;
+  if (!conforming.length) {
+    warnings.push(
+      '적격대출: 공공데이터 서버에서 일시적으로 조회되지 않습니다. (전세·디딤돌은 정상)'
+    );
+  }
   const anyOk = didimdol.length + rent.length + conforming.length > 0;
-  const allFailed = results.every((r) => r.status === 'rejected');
 
-  if (allFailed) {
-    const firstErr = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
-    throw firstErr.reason;
+  if (!anyOk && warnings.length === fetchers.length) {
+    throw new Error(warnings[0] ?? 'HF API 호출에 실패했습니다.');
   }
 
   return {

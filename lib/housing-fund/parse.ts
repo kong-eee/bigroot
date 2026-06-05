@@ -12,14 +12,27 @@ export function pickField(row: Record<string, unknown>, keys: string[]): string 
   return '';
 }
 
-export function normalizeItems(body: unknown): Record<string, unknown>[] {
+/** HF(B551408)는 body.items 배열 또는 body.item 단건 형태를 씁니다 */
+export function extractBodyItems(body: Record<string, unknown> | null | undefined): Record<string, unknown>[] {
   if (!body || typeof body !== 'object') return [];
-  const b = body as Record<string, unknown>;
-  const items = b.items;
-  if (!items || typeof items !== 'object') return [];
-  const item = (items as { item?: unknown }).item;
-  if (Array.isArray(item)) return item as Record<string, unknown>[];
-  if (item && typeof item === 'object') return [item as Record<string, unknown>];
+
+  if (Array.isArray(body.items)) {
+    return body.items as Record<string, unknown>[];
+  }
+
+  if (body.item && typeof body.item === 'object') {
+    const item = body.item;
+    if (Array.isArray(item)) return item as Record<string, unknown>[];
+    return [item as Record<string, unknown>];
+  }
+
+  const nested = body.items;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    const item = (nested as { item?: unknown }).item;
+    if (Array.isArray(item)) return item as Record<string, unknown>[];
+    if (item && typeof item === 'object') return [item as Record<string, unknown>];
+  }
+
   return [];
 }
 
@@ -28,15 +41,19 @@ export function parseDataGoKrResponse(json: Record<string, unknown>): {
   totalCount: number;
 } {
   const response = json.response as Record<string, unknown> | undefined;
-  const header = response?.header as { resultCode?: string; resultMsg?: string } | undefined;
-  const body = response?.body as Record<string, unknown> | undefined;
+  const header =
+    (response?.header as { resultCode?: string; resultMsg?: string } | undefined) ??
+    (json.header as { resultCode?: string; resultMsg?: string } | undefined);
+  const body =
+    (response?.body as Record<string, unknown> | undefined) ??
+    (json.body as Record<string, unknown> | undefined);
 
   const code = header?.resultCode ?? textOf(json.resultCode);
   if (code && code !== '00' && code !== '0') {
     throw new Error(header?.resultMsg ?? textOf(json.resultMsg) ?? `API 오류 (코드 ${code})`);
   }
 
-  const items = normalizeItems(body ?? json);
+  const items = extractBodyItems(body ?? (json as Record<string, unknown>));
   const totalCount = Number(body?.totalCount ?? items.length) || items.length;
   return { items, totalCount };
 }

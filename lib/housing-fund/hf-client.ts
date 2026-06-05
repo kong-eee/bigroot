@@ -7,7 +7,7 @@ import {
 } from './parse';
 import type { LoanRateCategory, LoanRateItem } from './types';
 
-const HF_BASE = 'http://apis.data.go.kr/B551408';
+const HF_BASE = 'https://apis.data.go.kr/B551408';
 
 export function isHfApiConfigured(): boolean {
   return resolveDataGoKrKey() != null;
@@ -86,9 +86,11 @@ function mapConforming(row: Record<string, unknown>, index: number): LoanRateIte
 }
 
 function mapRent(row: Record<string, unknown>, index: number): LoanRateItem {
-  const applyRaw = pickField(row, ['bssYm', 'applyDy', 'bssYmEnd']);
+  const start = pickField(row, ['bssYmdStart', 'bssYm', 'applyDy']);
+  const end = pickField(row, ['bssYmdEnd', 'bssYmEnd']);
+  const applyRaw = start || end;
   const { iso, label } = formatApplyDate(applyRaw);
-  const bank = pickField(row, ['organld', 'organId', 'organNm', 'bankNm']) || '금융기관';
+  const bank = pickField(row, ['organId', 'organld', 'organNm', 'bankNm']) || '금융기관';
   const rows = rateRowsFromObject(row, [
     { key: 'interest4_1', label: '적용금리1' },
     { key: 'interest4_2', label: '적용금리2' },
@@ -97,7 +99,12 @@ function mapRent(row: Record<string, unknown>, index: number): LoanRateItem {
   ]);
 
   const ratio = pickField(row, ['interest1_1', 'interest1_2']);
+  const period =
+    start && end
+      ? `${formatApplyDate(start).label} ~ ${formatApplyDate(end).label}`
+      : label;
   const summaryParts = [
+    period,
     ratio ? `보증비율 ${ratio}%` : '',
     rows[0] ? `적용 ${rows[0].value}` : '',
   ].filter(Boolean);
@@ -193,8 +200,12 @@ export async function fetchRentLoanRates(): Promise<LoanRateItem[]> {
 }
 
 export async function fetchConformingRates(): Promise<LoanRateItem[]> {
-  const raw = await fetchHfAll('/conforming-loan-rate/conforming-list', 80);
-  return sortByDateDesc(dedupeByKey(raw.map(mapConforming)));
+  try {
+    const raw = await fetchHfAll('/conforming-loan-rate/conforming-list', 80);
+    return sortByDateDesc(dedupeByKey(raw.map(mapConforming)));
+  } catch {
+    return [];
+  }
 }
 
 export function demoLoanRates(): {
