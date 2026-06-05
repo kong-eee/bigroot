@@ -6,6 +6,12 @@ export function resolveDataGoKrKey(): string | null {
   return key;
 }
 
+/** 공공데이터포털 인증키 — Decoding/Encoding 키 모두 URL에 1회만 인코딩 */
+export function buildDataGoKrServiceKeyQuery(serviceKey: string): string {
+  const decoded = serviceKey.includes('%') ? decodeURIComponent(serviceKey) : serviceKey;
+  return `serviceKey=${encodeURIComponent(decoded)}`;
+}
+
 type HousingRecord = Record<string, unknown>;
 
 function normalizeField(data: unknown): HousingRecord[] {

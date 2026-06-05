@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import PageHero from '@/app/components/layout/PageHero';
 import PageShell from '@/app/components/layout/PageShell';
+import LoanRateTab from './LoanRateTab';
 import YouthPolicyTab from './YouthPolicyTab';
 
 type TabId = 'youth' | 'loan' | 'notices';
 
 const TABS: { id: TabId; label: string; ready: boolean }[] = [
   { id: 'youth', label: '① 지역 청년정책', ready: true },
-  { id: 'loan', label: '② 기금·대출 금리', ready: false },
+  { id: 'loan', label: '② 기금·대출 금리', ready: true },
   { id: 'notices', label: '③ 중요 공지', ready: false },
 ];
 
@@ -27,7 +28,7 @@ export default function PolicyFeedPage() {
             <span className="text-[var(--brand)]">변동 알림 센터</span>
           </>
         }
-        description="내 지역 청년 주거 정책과 기금·대출 변동을 한곳에서 확인합니다. (1단계: 지역 청년정책 피드)"
+        description="내 지역 청년 주거 정책과 HF·기준금리 변동을 한곳에서 확인합니다."
       />
 
       <div className="ui-tab-bar mb-8 max-w-3xl mx-auto">
@@ -45,14 +46,7 @@ export default function PolicyFeedPage() {
 
       {tab === 'youth' && <YouthPolicyTab />}
 
-      {tab === 'loan' && (
-        <div className="ui-card p-10 text-center max-w-xl mx-auto">
-          <p className="font-black text-lg">기금·대출 금리 변동</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-3 font-medium">
-            한국주택금융공사·기금e든든 API 연동 후 이 탭에 금리 타임라인을 표시할 예정입니다.
-          </p>
-        </div>
-      )}
+      {tab === 'loan' && <LoanRateTab />}
 
       {tab === 'notices' && (
         <div className="ui-card p-10 text-center max-w-xl mx-auto">
