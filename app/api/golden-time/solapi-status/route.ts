@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { isSolapiKakaoConfigured, getSolapiConfig } from '@/lib/solapi/auth';
+import { getSolapiConfig } from '@/lib/solapi/auth';
 import { ALIMTALK_VARIABLE_KEYS, KAKAO_TEMPLATE_DRAFT } from '@/lib/solapi/alimtalk-variables';
+import { getAlimtalkReadiness } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +17,11 @@ export async function GET(request: Request) {
   }
 
   const c = getSolapiConfig();
+  const readiness = getAlimtalkReadiness();
   return NextResponse.json({
     success: true,
-    kakaoReady: isSolapiKakaoConfigured(),
+    ...readiness,
+    kakaoReady: readiness.sendEnabled,
     configured: {
       apiKey: Boolean(c.apiKey),
       apiSecret: Boolean(c.apiSecret),

@@ -49,7 +49,8 @@ Solapi → 카카오 알림톡 → **템플릿 등록**
 | `SOLAPI_API_SECRET` | Solapi API Secret |
 | `SOLAPI_SENDER_PHONE` | 등록된 발신번호 (하이픈 없이 `010...`) |
 | `SOLAPI_KAKAO_PF_ID` | 카카오 채널 pfId |
-| `SOLAPI_KAKAO_TEMPLATE_ID` | 승인된 알림톡 templateId |
+| `SOLAPI_KAKAO_TEMPLATE_ID` | 승인된 알림톡 templateId (심사 중이면 `PENDING`) |
+| `SOLAPI_KAKAO_SEND_ENABLED` | `true`일 때만 실제 발송 (심사 전에는 `false` 또는 미설정) |
 | `CRON_SECRET` | 크론 인증용 임의 문자열 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 예약 조회·발송 기록 |
 | `NEXT_PUBLIC_SITE_URL` | (선택) 알림톡 링크, 예: `https://bigroot.vercel.app/golden-time` |
@@ -67,9 +68,24 @@ SOLAPI_API_KEY=your_key
 SOLAPI_API_SECRET=your_secret
 SOLAPI_SENDER_PHONE=01012345678
 SOLAPI_KAKAO_PF_ID=PFxxxxxxxx
-SOLAPI_KAKAO_TEMPLATE_ID=KA01TPxxxxxxxx
+SOLAPI_KAKAO_TEMPLATE_ID=PENDING
+SOLAPI_KAKAO_SEND_ENABLED=false
 CRON_SECRET=long_random_string
 ```
+
+심사 통과 후:
+
+```env
+SOLAPI_KAKAO_TEMPLATE_ID=KA01TPxxxxxxxx
+SOLAPI_KAKAO_SEND_ENABLED=true
+```
+
+## 심사 대기 중에도 할 일
+
+1. `/golden-time`에서 **알림 예약**은 지금부터 가능 (Supabase 저장)
+2. 크론은 **dry_run** 모드 — 오늘 보낼 예정 건수만 집계, 발송은 안 함
+3. `GET /api/golden-time/config` — 연동 상태 확인 (비밀키 불필요)
+4. 템플릿 승인 후 `SOLAPI_KAKAO_SEND_ENABLED=true` + 재배포
 
 Git에 올리지 마세요.
 

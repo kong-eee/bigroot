@@ -1,165 +1,83 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import SiteFooter from './layout/SiteFooter';
+import BrandLogo from './BrandLogo';
 
-const TRUST = [
-  { value: '10+', label: '세입자 전용 도구' },
-  { value: '법률', label: '기반 정보 구조' },
-  { value: '무료', label: '핵심 기능 이용' },
-];
-
-const FEATURED = [
-  {
-    href: '/safety-check',
-    kicker: 'Flagship',
-    title: '보증금 안전진단',
-    desc: '공시가·지역 데이터로 전세 리스크를 숫자로 확인합니다.',
-    cta: '진단 시작',
-    large: true,
-  },
-  {
-    href: '/contract',
-    kicker: 'Before sign',
-    title: '계약전 체크',
-    desc: '입주 전에 놓치기 쉬운 필수 항목을 유형별로 정리했습니다.',
-    cta: '체크리스트',
-    large: false,
-  },
-  {
-    href: '/golden-time',
-    kicker: 'Deadline',
-    title: '골든타임',
-    desc: '갱신·통보·만기 등 놓치면 안 되는 날짜를 추적합니다.',
-    cta: '일정 보기',
-    large: false,
-  },
-];
-
-const GROUPS = [
-  {
-    title: '내 임대차',
-    subtitle: '일정과 절차를 한곳에서',
-    items: [
-      { href: '/lease-timeline', title: '타임라인', desc: '입주·만기·갱신·반환' },
-      { href: '/move-in-checklist', title: '입주 체크', desc: '입주 후 30일 필수' },
-      { href: '/deposit-return', title: '보증금 반환', desc: '퇴실·분쟁·등기 가이드' },
-      { href: '/mypage', title: '마이페이지', desc: '만기일·알림·내 글' },
-    ],
-  },
-  {
-    title: '진단 · 도구',
-    subtitle: '데이터와 AI로 판단',
-    items: [
-      { href: '/rent-increase', title: '임대료 진단', desc: '인상 한도 점검' },
-      { href: '/legal-ai', title: '근방 AI', desc: '임대차법 조문 해설' },
-      { href: '/renewal-check', title: '갱신 체크', desc: '갱신 요건 확인' },
-    ],
-  },
-  {
-    title: '정보 · 소통',
-    subtitle: '권리와 경험을 연결',
-    items: [
-      { href: '/policy-feed', title: '청년·기금 피드', desc: '지역 청년정책·금리 변동' },
-      { href: '/rights-guide', title: '권리백과', desc: '세입자 권리 정리' },
-      { href: '/community', title: '커뮤니티', desc: '경험 나누기' },
-      { href: '/feedback', title: '문의·요청', desc: '기능 제안' },
-    ],
-  },
+const CHECKLIST = [
+  '전입·확정일자·임대차 신고 타이밍',
+  '만기·갱신·퇴거 골든타임 알림',
+  '보증금 반환 분쟁 대응 루트',
 ];
 
 export default function HomeRefresh() {
   return (
-    <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)]">
-      <main>
-        {/* Hero */}
-        <section className="page-main relative overflow-hidden pb-16 sm:pb-24">
-          <div
-            className="pointer-events-none absolute inset-0 -z-10"
-            aria-hidden
-          >
-            <div className="absolute -top-32 right-0 h-[420px] w-[420px] rounded-full bg-[var(--brand)]/12 blur-3xl" />
-            <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-full bg-[var(--accent)]/10 blur-3xl" />
-            <div
-              className="absolute inset-0 opacity-[0.35]"
-              style={{
-                backgroundImage:
-                  'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)',
-                backgroundSize: '48px 48px',
-              }}
-            />
-          </div>
+    <div className="min-h-screen bg-[var(--bg-page)] font-sans text-[var(--text-primary)] selection:bg-[var(--brand-soft)] selection:text-[var(--brand)]">
+      <main className="pt-20">
+        <section className="relative pt-28 pb-36 px-8 overflow-hidden">
+          <div className="absolute top-0 right-0 -z-10 w-[560px] h-[560px] bg-[var(--brand-soft)] rounded-full blur-3xl opacity-70 translate-x-1/3 -translate-y-1/3" />
+          <div className="absolute bottom-0 left-0 -z-10 w-[400px] h-[400px] bg-[var(--accent-soft)] rounded-full blur-3xl opacity-80 -translate-x-1/4 translate-y-1/4" />
 
-          <div className="page-container page-container-wide">
-            <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:items-center">
-              <div className="space-y-8 text-center lg:text-left">
-                <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                  <span className="ui-badge ui-badge-brand">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand)] animate-pulse" />
-                    BIGROOT · Tenant-first
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
+            <div className="flex-1 space-y-9 text-center lg:text-left">
+              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+                <BrandLogo size="lg" href={null} showWordmark={false} />
+                <div className="inline-flex items-center gap-2 px-5 py-2 bg-[var(--bg-surface)] rounded-full shadow-sm border border-[var(--border)]">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand)] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand)]" />
                   </span>
-                  <span className="ui-badge">법률 · 데이터 · 커뮤니티</span>
+                  <span className="text-xs font-black text-[var(--accent)] tracking-wider uppercase">
+                    세입자 권리 · 뿌리부터
+                  </span>
                 </div>
-
-                <h1 className="text-[2.25rem] sm:text-5xl lg:text-[3.25rem] font-black leading-[1.08] tracking-tight">
-                  보증금과 권리,
-                  <br />
-                  <span className="text-[var(--brand)]">뿌리</span>
-                  <span className="text-[var(--accent)]">부터</span> 단단하게.
-                </h1>
-
-                <p className="text-base sm:text-lg font-medium text-[var(--text-secondary)] leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  복잡한 임대차를 혼자 끌어안지 않아도 됩니다. 진단·일정·가이드로 다음
-                  행동까지 연결해 드립니다.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                  <Link
-                    href="/safety-check"
-                    className="ui-btn-primary text-base px-7 shadow-[var(--shadow-brand)]"
-                  >
-                    안전진단 시작
-                  </Link>
-                  <Link href="/lease-timeline" className="ui-btn-secondary text-base px-7">
-                    내 타임라인
-                  </Link>
-                </div>
-
-                <dl className="grid grid-cols-3 gap-3 max-w-lg mx-auto lg:mx-0 pt-2">
-                  {TRUST.map((t) => (
-                    <div
-                      key={t.label}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/80 px-3 py-3 text-center backdrop-blur-sm"
-                    >
-                      <dt className="text-lg sm:text-xl font-black text-[var(--brand)]">
-                        {t.value}
-                      </dt>
-                      <dd className="text-[10px] sm:text-xs font-bold text-[var(--text-muted)] mt-0.5">
-                        {t.label}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
               </div>
 
-              <div className="ui-panel-dark p-6 sm:p-8 shadow-[var(--shadow-lg)] space-y-6">
+              <h1 className="text-5xl md:text-7xl lg:text-8xl font-[1000] text-[var(--text-primary)] leading-[1.05] tracking-tight">
+                세입자의
+                <br />
+                <span className="text-[var(--brand)] inline-block mt-2">든든한 뿌리.</span>
+              </h1>
+
+              <p className="text-lg md:text-2xl text-[var(--text-secondary)] font-bold leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                복잡한 부동산 법률과 불합리한 상황 속에서도,
+                <br className="hidden md:block" />
+                당신의 소중한 보증금과 권리를 단단하게 지켜드립니다.
+              </p>
+
+              <div className="flex flex-wrap gap-4 justify-center lg:justify-start">
+                <Link
+                  href="/community"
+                  className="px-10 py-5 bg-[var(--brand)] text-[var(--brand-on)] rounded-2xl font-black text-lg hover:scale-105 hover:shadow-2xl hover:shadow-[var(--shadow-brand)] transition-all active:scale-95"
+                >
+                  커뮤니티
+                </Link>
+                <Link
+                  href="/rights-guide"
+                  className="px-10 py-5 bg-[var(--bg-surface)] text-[var(--text-primary)] border-2 border-[var(--border)] rounded-2xl font-black text-lg hover:bg-[var(--bg-muted)] hover:border-[var(--accent)] transition-all"
+                >
+                  권리백과 구경하기
+                </Link>
+              </div>
+            </div>
+
+            <div className="flex-1 w-full max-w-[450px] lg:max-w-none">
+              <div className="ui-panel-dark p-8 sm:p-10 shadow-2xl rounded-[2.5rem] space-y-6 border border-white/10">
                 <div className="flex items-center justify-between gap-4">
-                  <p className="ui-kicker text-white/50">Live checklist</p>
+                  <p className="text-xs font-black tracking-widest uppercase text-white/50">
+                    Live checklist
+                  </p>
                   <span className="rounded-full bg-[var(--brand)] px-3 py-1 text-[10px] font-black text-[var(--brand-on)]">
                     READY
                   </span>
                 </div>
-                <p className="text-xl sm:text-2xl font-black leading-snug">
+                <p className="text-2xl sm:text-3xl font-black leading-snug">
                   오늘 할 일을
                   <br />
                   <span className="text-[var(--brand)]">한 화면</span>에.
                 </p>
-                <ul className="space-y-3 text-sm font-medium text-white/75">
-                  {[
-                    '전입·확정일자·임대차 신고 타이밍',
-                    '만기·갱신·퇴거 골든타임 알림',
-                    '보증금 반환 분쟁 대응 루트',
-                  ].map((line) => (
+                <ul className="space-y-3 text-sm font-bold text-white/80">
+                  {CHECKLIST.map((line) => (
                     <li key={line} className="flex gap-3 items-start">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[var(--brand)] text-[10px] font-black text-[var(--brand-on)]">
                         ✓
@@ -170,7 +88,7 @@ export default function HomeRefresh() {
                 </ul>
                 <Link
                   href="/move-in-checklist"
-                  className="block w-full text-center py-3.5 rounded-xl bg-[var(--brand)] text-[var(--brand-on)] font-black text-sm hover:bg-[var(--brand-hover)] transition-colors"
+                  className="block w-full text-center py-4 rounded-2xl bg-[var(--brand)] text-[var(--brand-on)] font-black text-base hover:bg-[var(--brand-hover)] transition-colors"
                 >
                   입주 체크리스트 열기
                 </Link>
@@ -179,113 +97,151 @@ export default function HomeRefresh() {
           </div>
         </section>
 
-        {/* Featured */}
-        <section className="px-4 pb-16 sm:pb-20">
-          <div className="page-container page-container-wide space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-              <div>
-                <p className="ui-kicker mb-2">Featured</p>
-                <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-                  지금 바로 쓸 도구
-                </h2>
-              </div>
-              <p className="text-sm font-medium text-[var(--text-muted)] max-w-xs">
-                가장 많이 찾는 기능부터 연결했습니다.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {FEATURED.map((f) => (
-                <Link
-                  key={f.href}
-                  href={f.href}
-                  className={`ui-card ui-card-hover p-6 sm:p-7 flex flex-col min-h-[200px] group ${
-                    f.large ? 'md:col-span-2 lg:col-span-2 lg:min-h-[220px]' : ''
-                  }`}
-                >
-                  <span className="ui-kicker mb-3">{f.kicker}</span>
-                  <h3
-                    className={`font-black mb-2 group-hover:text-[var(--brand)] transition-colors ${
-                      f.large ? 'text-2xl sm:text-3xl' : 'text-xl'
-                    }`}
-                  >
-                    {f.title}
-                  </h3>
-                  <p className="text-sm font-medium text-[var(--text-secondary)] leading-relaxed flex-1">
-                    {f.desc}
-                  </p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[var(--accent)] group-hover:text-[var(--brand)] transition-colors">
-                    {f.cta}
-                    <span aria-hidden>→</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Tool groups */}
-        <section className="py-14 sm:py-20 px-4 bg-[var(--bg-surface)] border-y border-[var(--border)]">
-          <div className="page-container page-container-wide space-y-12">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <p className="ui-kicker">All tools</p>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-                상황별로 골라 쓰세요
+        <section className="bg-[var(--bg-surface)] py-32 px-8 border-t border-[var(--border)]">
+          <div className="max-w-7xl mx-auto space-y-20">
+            <div className="text-center space-y-4">
+              <h3 className="text-[var(--accent)] font-black tracking-widest text-sm uppercase">
+                Our Services
+              </h3>
+              <h2 className="text-4xl md:text-5xl font-black text-[var(--text-primary)]">
+                전문가가 설계한 세입자 전용 솔루션
               </h2>
-              <p className="text-sm sm:text-base font-medium text-[var(--text-secondary)]">
-                임대차 여정 전체를 카테고리별로 정리했습니다.
-              </p>
             </div>
 
-            {GROUPS.map((group) => (
-              <div key={group.title} className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4 border-b border-[var(--border)] pb-3">
-                  <h3 className="text-lg font-black">{group.title}</h3>
-                  <p className="text-sm font-medium text-[var(--text-muted)]">{group.subtitle}</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {group.items.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="ui-card ui-card-hover p-4 sm:p-5 group"
-                    >
-                      <h4 className="font-black text-base mb-1 group-hover:text-[var(--brand)] transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="text-xs font-medium text-[var(--text-muted)]">{item.desc}</p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* CTA band */}
-        <section className="px-4 py-14 sm:py-16">
-          <div className="page-container page-container-wide">
-            <div className="rounded-[var(--radius-xl)] border border-[var(--border-strong,var(--border))] bg-[var(--text-primary)] px-6 py-10 sm:px-12 sm:py-12 text-center sm:text-left sm:flex sm:items-center sm:justify-between gap-8 shadow-[var(--shadow-lg)]">
-              <div className="space-y-2">
-                <p className="ui-kicker text-[var(--brand)]">Community</p>
-                <h2 className="text-xl sm:text-2xl font-black text-white">
-                  비슷한 고민, 함께 풀어요
-                </h2>
-                <p className="text-sm font-medium text-white/65 max-w-md">
-                  실제 경험과 질문이 쌓이는 세입자 커뮤니티입니다.
-                </p>
-              </div>
-              <Link
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+              <ServiceCard
                 href="/community"
-                className="inline-flex shrink-0 ui-btn-primary text-base px-8 mt-6 sm:mt-0"
-              >
-                커뮤니티 가기
-              </Link>
+                icon="🗨️"
+                title="커뮤니티"
+                desc="실시간으로 쏟아지는 부동산 고민, 같은 처지의 임차인들과 전문가가 함께 답해드립니다."
+              />
+              <ServiceCard
+                href="/rights-guide"
+                icon="📖"
+                title="권리백과"
+                desc="어려운 법률 용어는 이제 그만. 세입자가 꼭 알아야 할 핵심 법규를 쉽게 풀어드립니다."
+              />
+              <ServiceCard
+                href="/rent-increase"
+                icon="📈"
+                title="임대료 진단"
+                desc="우리 집 임대료 인상이 적정한지, 상한제 적용 대상인지 데이터로 정확히 분석합니다."
+              />
+              <ServiceCard
+                href="/golden-time"
+                icon="⏳"
+                title="골든타임"
+                desc="계약 갱신 요구권, 퇴거 통보 등 절대로 놓쳐선 안 될 임대차 중요 날짜를 정밀하게 추적합니다."
+              />
+            </div>
+
+            <div className="text-center space-y-4 pt-12">
+              <h3 className="text-[var(--text-muted)] font-black tracking-widest text-sm uppercase">
+                My Lease
+              </h3>
+              <h2 className="text-3xl md:text-4xl font-black text-[var(--text-primary)]">
+                내 임대차 관리
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              <ServiceCard
+                href="/lease-timeline"
+                icon="📅"
+                title="개인 타임라인"
+                desc="입주부터 만기·갱신·보증금 반환까지 내 일정을 한 줄로 정리합니다."
+              />
+              <ServiceCard
+                href="/move-in-checklist"
+                icon="✅"
+                title="입주 직후 체크"
+                desc="전입신고, 하자 기록, 임대차 신고 등 입주 후 필수 항목을 단계별로 챙깁니다."
+              />
+              <ServiceCard
+                href="/deposit-return"
+                icon="💸"
+                title="보증금 반환 가이드"
+                desc="퇴실 통보부터 내용증명·분쟁조정·임차권등기까지 분쟁 대응 절차를 안내합니다."
+              />
             </div>
           </div>
         </section>
       </main>
-      <SiteFooter />
+
+      <footer className="py-16 px-8 bg-[var(--text-primary)] text-white">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
+          <div className="space-y-5">
+            <BrandLogo size="md" href={null} className="[&_img]:brightness-110" />
+            <p className="text-white/60 font-medium max-w-xs leading-relaxed">
+              세입자가 당당한 세상을 위해 데이터와 법률로 뿌리를 내립니다.
+            </p>
+          </div>
+
+          <div className="flex gap-16 sm:gap-20">
+            <div className="space-y-4">
+              <h5 className="font-black text-lg text-[var(--brand-soft)]">서비스</h5>
+              <div className="flex flex-col gap-2 text-white/55 text-sm font-bold">
+                <FooterLink href="/community">커뮤니티</FooterLink>
+                <FooterLink href="/rights-guide">권리백과</FooterLink>
+                <FooterLink href="/rent-increase">임대료진단</FooterLink>
+                <FooterLink href="/golden-time">골든타임</FooterLink>
+                <FooterLink href="/lease-timeline">내 타임라인</FooterLink>
+                <FooterLink href="/move-in-checklist">입주 체크</FooterLink>
+                <FooterLink href="/deposit-return">보증금 반환</FooterLink>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h5 className="font-black text-lg text-[var(--brand-soft)]">고객지원</h5>
+              <div className="flex flex-col gap-2 text-white/55 text-sm font-bold">
+                <FooterLink href="/feedback">문의하기</FooterLink>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto pt-16 mt-16 border-t border-white/10 text-center text-white/45 text-sm font-bold">
+          &copy; 2026 빅루트. All rights reserved.
+        </div>
+      </footer>
     </div>
+  );
+}
+
+function ServiceCard({
+  href,
+  icon,
+  title,
+  desc,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group p-10 bg-[var(--bg-muted)] rounded-[2.5rem] border border-transparent hover:border-[var(--brand)] hover:bg-[var(--bg-surface)] hover:shadow-2xl transition-all duration-500 flex flex-col justify-between min-h-[300px]"
+    >
+      <div>
+        <div className="w-16 h-16 bg-[var(--bg-surface)] rounded-2xl flex items-center justify-center text-3xl shadow-sm mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 border border-[var(--border)]">
+          {icon}
+        </div>
+        <h4 className="text-xl font-black text-[var(--text-primary)] mb-3 group-hover:text-[var(--brand)] transition-colors">
+          {title}
+        </h4>
+        <p className="text-[var(--text-secondary)] font-bold leading-relaxed text-sm">{desc}</p>
+      </div>
+      <div className="pt-6 flex items-center gap-2 text-[var(--accent)] font-black opacity-0 group-hover:opacity-100 group-hover:text-[var(--brand)] transition-all">
+        자세히 보기 <span className="text-xl">→</span>
+      </div>
+    </Link>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="hover:text-[var(--brand-soft)] transition-colors">
+      {children}
+    </Link>
   );
 }

@@ -28,6 +28,11 @@ export default function LoanRateCard({ item }: LoanRateCardProps) {
             {item.institution}
           </span>
         )}
+        {item.isReference && (
+          <span className="ui-badge text-[10px] bg-amber-100 text-amber-900 border-amber-200">
+            참고
+          </span>
+        )}
         <span className="ui-badge text-[10px] text-[var(--text-muted)]">
           {item.applyDateLabel}
         </span>

@@ -11,7 +11,7 @@ import type { YouthPolicyItem, YouthPolicyListResult, YouthPolicyScope } from '.
 const API_BASE = 'https://www.youthcenter.go.kr/go/ythip/getPlcy';
 const HOUSING_CATEGORY = '주거';
 const API_BATCH_SIZE = 50;
-const MAX_SCAN_PAGES = 60;
+const MAX_SCAN_PAGES = 30;
 const UPSTREAM_MAX_RETRIES = 3;
 
 function sleep(ms: number) {
@@ -174,17 +174,21 @@ async function fetchPolicyPage(
     return { ...demoPolicies(params), source: 'demo' };
   }
 
-  const { items, totalCount } = await scanFilteredPolicies(params, youthApiCode);
-  const totalPages = Math.max(1, Math.ceil(totalCount / params.pageSize));
+  try {
+    const { items, totalCount } = await scanFilteredPolicies(params, youthApiCode);
+    const totalPages = Math.max(1, Math.ceil(totalCount / params.pageSize));
 
-  return {
-    items,
-    page: params.page,
-    pageSize: params.pageSize,
-    totalCount,
-    hasMore: params.page < totalPages,
-    source: 'api',
-  };
+    return {
+      items,
+      page: params.page,
+      pageSize: params.pageSize,
+      totalCount,
+      hasMore: params.page < totalPages,
+      source: 'api',
+    };
+  } catch {
+    return { ...demoPolicies(params), source: 'demo' };
+  }
 }
 
 export async function fetchYouthPolicies(options: {

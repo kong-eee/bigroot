@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import PageHero from '@/app/components/layout/PageHero';
 import PageShell from '@/app/components/layout/PageShell';
+import ImportantNoticesTab from './ImportantNoticesTab';
 import LoanRateTab from './LoanRateTab';
 import YouthPolicyTab from './YouthPolicyTab';
 
@@ -11,7 +12,7 @@ type TabId = 'youth' | 'loan' | 'notices';
 const TABS: { id: TabId; label: string; ready: boolean }[] = [
   { id: 'youth', label: '① 지역 청년정책', ready: true },
   { id: 'loan', label: '② 기금·대출 금리', ready: true },
-  { id: 'notices', label: '③ 중요 공지', ready: false },
+  { id: 'notices', label: '③ 중요 공지', ready: true },
 ];
 
 export default function PolicyFeedPage() {
@@ -48,14 +49,7 @@ export default function PolicyFeedPage() {
 
       {tab === 'loan' && <LoanRateTab />}
 
-      {tab === 'notices' && (
-        <div className="ui-card p-10 text-center max-w-xl mx-auto">
-          <p className="font-black text-lg">중요 공지</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-3 font-medium">
-            금리 인상·모집 공고 등 선별 공지를 모아 보여 줄 예정입니다.
-          </p>
-        </div>
-      )}
+      {tab === 'notices' && <ImportantNoticesTab />}
     </PageShell>
   );
 }

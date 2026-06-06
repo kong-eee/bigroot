@@ -1,5 +1,9 @@
 import { buildDataGoKrServiceKeyQuery, resolveDataGoKrKey } from '@/lib/data-go-kr';
 import {
+  CONFORMING_REFERENCE_NOTE,
+  getConformingReferenceRates,
+} from './conforming-fallback';
+import {
   formatApplyDate,
   parseDataGoKrResponse,
   pickField,
@@ -8,6 +12,16 @@ import {
 import type { LoanRateCategory, LoanRateItem } from './types';
 
 const HF_BASE = 'https://apis.data.go.kr/B551408';
+const HF_FETCH_TIMEOUT_MS = 12_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableHfError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return /HF API HTTP (500|502|503|504)/.test(err.message);
+}
 
 export function isHfApiConfigured(): boolean {
   return resolveDataGoKrKey() != null;
@@ -30,8 +44,15 @@ async function fetchHfPage(
   });
 
   const url = `${HF_BASE}${path}?${buildDataGoKrServiceKeyQuery(serviceKey)}&${params.toString()}`;
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetch(url, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(HF_FETCH_TIMEOUT_MS),
+  });
   const text = await res.text();
+
+  if (!res.ok) {
+    throw new Error(`HF API HTTP ${res.status} (${path})`);
+  }
 
   if (!text.trim().startsWith('{')) {
     throw new Error('HF API 응답 형식 오류입니다. 공공데이터포털 활용신청·인증키를 확인하세요.');
@@ -41,28 +62,49 @@ async function fetchHfPage(
   return parseDataGoKrResponse(json);
 }
 
-async function fetchHfAll(path: string, maxRows = 200): Promise<Record<string, unknown>[]> {
-  const pageSize = 100;
-  const all: Record<string, unknown>[] = [];
-  let page = 1;
-  let total = Infinity;
+async function fetchHfAll(
+  path: string,
+  maxRows = 200,
+  options?: { maxAttempts?: number }
+): Promise<Record<string, unknown>[]> {
+  const maxAttempts = options?.maxAttempts ?? 1;
+  let lastErr: unknown;
 
-  while (all.length < maxRows && all.length < total && page <= 5) {
-    const { items, totalCount } = await fetchHfPage(path, page, pageSize);
-    total = totalCount;
-    if (!items.length) break;
-    all.push(...items);
-    if (items.length < pageSize) break;
-    page += 1;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await sleep(900 * attempt);
+    }
+    try {
+      const pageSize = 100;
+      const all: Record<string, unknown>[] = [];
+      let page = 1;
+      let total = Infinity;
+
+      while (all.length < maxRows && all.length < total && page <= 5) {
+        const { items, totalCount } = await fetchHfPage(path, page, pageSize);
+        total = totalCount;
+        if (!items.length) break;
+        all.push(...items);
+        if (items.length < pageSize) break;
+        page += 1;
+      }
+
+      return all.slice(0, maxRows);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < maxAttempts - 1 && isRetryableHfError(e)) continue;
+      throw e;
+    }
   }
 
-  return all.slice(0, maxRows);
+  throw lastErr instanceof Error ? lastErr : new Error('HF API 호출 실패');
 }
 
 function mapConforming(row: Record<string, unknown>, index: number): LoanRateItem {
   const applyRaw = pickField(row, ['applyDy', 'applyDate', 'bssYm']);
   const { iso, label } = formatApplyDate(applyRaw);
   const productName = pickField(row, ['productNm', 'productName']) || '적격대출';
+  const institution = pickField(row, ['orgNm', 'organNm', 'bankNm', 'callCenter']) || '한국주택금융공사';
   const rows = rateRowsFromObject(row, [
     { key: 'interest_10y', label: '10년' },
     { key: 'interest_15y', label: '15년' },
@@ -74,7 +116,7 @@ function mapConforming(row: Record<string, unknown>, index: number): LoanRateIte
     id: `conforming-${applyRaw}-${index}`,
     category: 'conforming',
     productName,
-    institution: pickField(row, ['callCenter']) || '한국주택금융공사',
+    institution,
     applyDate: iso,
     applyDateLabel: label,
     rows,
@@ -195,17 +237,41 @@ export async function fetchDidimdolRates(): Promise<LoanRateItem[]> {
 }
 
 export async function fetchRentLoanRates(): Promise<LoanRateItem[]> {
-  const raw = await fetchHfAll('/rent-loan-rate-info/rate-list', 150);
+  const raw = await fetchHfAll('/rent-loan-rate-info/rate-list', 150, {
+    maxAttempts: 3,
+  });
   return sortByDateDesc(dedupeByKey(raw.map(mapRent)));
 }
 
-export async function fetchConformingRates(): Promise<LoanRateItem[]> {
+export type ConformingFetchResult = {
+  items: LoanRateItem[];
+  source: 'api' | 'reference';
+  note?: string;
+};
+
+export async function fetchConformingRates(): Promise<ConformingFetchResult> {
   try {
-    const raw = await fetchHfAll('/conforming-loan-rate/conforming-list', 80);
-    return sortByDateDesc(dedupeByKey(raw.map(mapConforming)));
+    const raw = await fetchHfAll('/conforming-loan-rate/conforming-list', 80, {
+      maxAttempts: 3,
+    });
+    if (raw.length > 0) {
+      return {
+        items: sortByDateDesc(dedupeByKey(raw.map(mapConforming))),
+        source: 'api',
+      };
+    }
   } catch {
-    return [];
+    /* fall through to reference */
   }
+
+  return {
+    items: getConformingReferenceRates().map((item) => ({
+      ...item,
+      isReference: true,
+    })),
+    source: 'reference',
+    note: CONFORMING_REFERENCE_NOTE,
+  };
 }
 
 export function demoLoanRates(): {

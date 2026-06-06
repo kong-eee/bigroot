@@ -3,7 +3,7 @@ import { createAdminSupabase } from '@/lib/supabase-admin';
 import { buildAlimtalkVariables } from '@/lib/solapi/alimtalk-variables';
 import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
 import { getTemplateIdForSlot, sendKakaoAlimtalk } from '@/lib/solapi/alimtalk';
-import { isSolapiKakaoConfigured } from '@/lib/solapi/auth';
+import { getAlimtalkReadiness, isAlimtalkSendEnabled } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,15 +29,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!isSolapiKakaoConfigured()) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Solapi 카카오 알림톡 env 미설정. docs/SOLAPI_KAKAO_SETUP.md 참고',
-      },
-      { status: 503 }
-    );
-  }
+  const readiness = getAlimtalkReadiness();
+  const sendEnabled = isAlimtalkSendEnabled();
 
   const admin = createAdminSupabase();
   if (!admin) {
@@ -55,7 +48,9 @@ export async function GET(request: Request) {
   }
 
   let sent = 0;
+  let wouldSend = 0;
   const errors: string[] = [];
+  const pending: { reminderId: string; slot: number; phone: string }[] = [];
 
   for (const row of rows ?? []) {
     const propertyType = row.property_type;
@@ -67,6 +62,17 @@ export async function GET(request: Request) {
       const sentAt = row[`sent_at_${slot}`] as string | null;
 
       if (!remindOn || remindOn !== today || sentAt) continue;
+
+      wouldSend += 1;
+
+      if (!sendEnabled) {
+        pending.push({
+          reminderId: row.id as string,
+          slot,
+          phone: (row.phone as string).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'),
+        });
+        continue;
+      }
 
       const variables = buildAlimtalkVariables(
         propertyType,
@@ -92,8 +98,15 @@ export async function GET(request: Request) {
   return NextResponse.json({
     success: true,
     channel: 'kakao_alimtalk',
+    mode: sendEnabled ? 'live' : 'dry_run',
+    readiness: readiness.status,
     today,
     sent,
+    wouldSend,
+    pending: sendEnabled ? undefined : pending,
     errors,
+    message: sendEnabled
+      ? undefined
+      : readiness.message,
   });
 }

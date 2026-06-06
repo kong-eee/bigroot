@@ -9,8 +9,9 @@ import PolicyPagination from './PolicyPagination';
 import YouthPolicyCard from './YouthPolicyCard';
 
 const PAGE_SIZE = 5;
-const MAX_FETCH_RETRIES = 3;
-const RETRY_BASE_MS = 1200;
+const MAX_FETCH_RETRIES = 5;
+const RETRY_BASE_MS = 1500;
+const FETCH_TIMEOUT_MS = 90_000;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -18,7 +19,7 @@ function sleep(ms: number) {
 
 function isRetryableFetchError(message: string, status?: number): boolean {
   if (status === 502 || status === 503 || status === 504) return true;
-  return /fetch failed|failed to fetch|network|timeout|aborted|socket|ECONNRESET/i.test(
+  return /fetch failed|failed to fetch|network|timeout|aborted|socket|ECONNRESET|불러오지 못했습니다/i.test(
     message
   );
 }
@@ -76,7 +77,8 @@ export default function YouthPolicyTab() {
 
         try {
           const res = await fetch(
-            `/api/youth-policies?sido=${sidoCode}&scope=${scope}&page=${nextPage}&pageSize=${PAGE_SIZE}`
+            `/api/youth-policies?sido=${sidoCode}&scope=${scope}&page=${nextPage}&pageSize=${PAGE_SIZE}&_=${Date.now()}`,
+            { cache: 'no-store', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }
           );
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.success) {

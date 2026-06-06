@@ -49,6 +49,25 @@ export async function GET(request: Request) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : '정책 목록을 불러오지 못했습니다.';
+    try {
+      const fallback = await fetchYouthPolicies({
+        sidoCode,
+        youthRegionCode: undefined,
+        scope,
+        page,
+        pageSize,
+      });
+      if (fallback.items.length > 0) {
+        return NextResponse.json({
+          success: true,
+          ...fallback,
+          configured: false,
+          message: `${message} — 예시 정책을 표시합니다. 잠시 후 다시 시도하세요.`,
+        });
+      }
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ success: false, error: message }, { status: 502 });
   }
 }

@@ -48,6 +48,20 @@ npm run dev
 
 `/policy-feed` → ② 탭 · `curl http://localhost:3000/api/loan-rates`
 
+### 적격대출 API 샘플 호출만 확인
+
+```bash
+node scripts/test-conforming-api.mjs
+```
+
+| 결과 | 의미 |
+|------|------|
+| `HTTP 200` + `resultCode: 00` + `items: N건` | 정상 — 앱에도 곧 표시됨 |
+| `HTTP 500` + `어플리케이션 에러` | HF/공공데이터 서버 쪽 오류 (인증키 문제 아님) |
+| `401` / `SERVICE_KEY` | 인증키·15082047 활용신청 |
+
+공공데이터포털 페이지(15082047)에서 **「확인」/「미리보기」** 로 같은 URL을 눌러 보거나, 샘플코드의 `productNm`을 넣어 Python으로 호출해도 됩니다. 포털 샘플은 `dataType=XML`이고, 빅루트는 `json`을 씁니다.
+
 ## 5. 기금e든든 (다음 단계)
 
 [기금e든든 상품기본금리 파일](https://www.data.go.kr/data/15134239/fileData.do) — REST가 아니라 파일 다운로드 + Cron 연동.

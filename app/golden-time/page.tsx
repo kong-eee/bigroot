@@ -18,6 +18,13 @@ type SavedReminder = {
   slots: { remindOn: string; label: string; sentAt?: string | null }[];
 };
 
+type AlimtalkConfig = {
+  sendEnabled: boolean;
+  status: 'pending_template' | 'ready_to_send' | 'missing_credentials';
+  message: string;
+  templateDraft?: string;
+};
+
 export default function GoldenTimePage() {
   const [activeTab, setActiveTab] = useState<'residential' | 'commercial'>('residential');
   const [expiryDate, setExpiryDate] = useState<string>('');
@@ -29,6 +36,7 @@ export default function GoldenTimePage() {
   const [loadingReminder, setLoadingReminder] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [alimtalk, setAlimtalk] = useState<AlimtalkConfig | null>(null);
 
   const propertyType: GoldenPropertyType = activeTab === 'residential' ? '주택' : '상가';
 
@@ -73,12 +81,41 @@ export default function GoldenTimePage() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/golden-time/config', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setAlimtalk({
+            sendEnabled: Boolean(data.sendEnabled),
+            status: data.status,
+            message: data.message ?? '',
+            templateDraft: data.templateDraft,
+          });
+        }
+      })
+      .catch(() => {
+        setAlimtalk(null);
+      });
+  }, []);
+
+  useEffect(() => {
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       setUser(u ? { id: u.id } : null);
       if (u) void loadReminder();
       else setLoadingReminder(false);
     });
   }, [loadReminder]);
+
+  const copyTemplateDraft = async () => {
+    const text = alimtalk?.templateDraft;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('카카오 알림톡 심사용 문구를 복사했습니다.\nSolapi 대시보드 → 템플릿 등록에 붙여넣으세요.');
+    } catch {
+      prompt('아래 문구를 복사하세요.', text);
+    }
+  };
 
   const milestones = {
     residential: [
@@ -172,9 +209,15 @@ export default function GoldenTimePage() {
         })),
       });
       setShowForm(false);
-      alert(
-        `알림 예약이 완료되었습니다.\n\n${data.schedule.length}회 카카오 알림톡으로 안내드릴 예정입니다.`
-      );
+      if (data.alimtalk?.sendEnabled) {
+        alert(
+          `알림 예약이 완료되었습니다.\n\n${data.schedule.length}회 카카오 알림톡으로 해당 날짜에 자동 발송됩니다.`
+        );
+      } else {
+        alert(
+          `알림 예약이 완료되었습니다.\n\n${data.schedule.length}회 일정이 저장되었습니다.\n카카오 알림톡 템플릿 심사 통과 후 자동 발송이 시작됩니다.`
+        );
+      }
     } catch {
       alert('네트워크 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -218,6 +261,32 @@ export default function GoldenTimePage() {
         description="갱신·통보·신고 등 놓치면 안 되는 날짜를 미리 챙겨 보세요."
       />
       <div className="max-w-2xl mx-auto space-y-8">
+        {alimtalk && (
+          <div
+            className={`rounded-2xl p-4 text-sm font-medium border ${
+              alimtalk.sendEnabled
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : 'bg-amber-50 border-amber-200 text-amber-950'
+            }`}
+          >
+            <p className="font-black text-xs mb-1">
+              {alimtalk.sendEnabled
+                ? '카카오 알림톡 자동 발송 · 활성'
+                : '카카오 알림톡 · 예약 가능 (발송 대기)'}
+            </p>
+            <p className="text-xs leading-relaxed opacity-90">{alimtalk.message}</p>
+            {!alimtalk.sendEnabled && alimtalk.templateDraft && (
+              <button
+                type="button"
+                onClick={() => void copyTemplateDraft()}
+                className="mt-3 text-xs font-black underline"
+              >
+                심사용 템플릿 문구 복사하기
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex bg-white p-1.5 rounded-[2.5rem] shadow-sm border border-gray-100">
           <button
             type="button"
@@ -333,6 +402,11 @@ export default function GoldenTimePage() {
             ) : saved ? (
               <div className="bg-white/10 rounded-2xl p-5 text-left space-y-3">
                 <p className="text-white font-black text-sm">✅ 예약 완료 ({saved.phone})</p>
+                <p className="text-[10px] text-white/70 font-medium">
+                  {alimtalk?.sendEnabled
+                    ? '해당 날짜 오전에 카카오 알림톡이 발송됩니다.'
+                    : '일정 저장됨 · 템플릿 승인 후 자동 발송 시작'}
+                </p>
                 <ul className="space-y-2">
                   {saved.slots.map((s) => (
                     <li key={s.remindOn} className="text-[11px] text-white/90 font-medium">
@@ -448,9 +522,8 @@ export default function GoldenTimePage() {
         </div>
 
         <p className="text-center text-[10px] text-gray-400 font-medium px-4 leading-relaxed">
-          자동 발송은 Solapi + 카카오 알림톡 연동 후 해당 날짜 오전(한국시간)에 전송됩니다. 설정
-          방법은 프로젝트 <code className="text-gray-500">docs/SOLAPI_KAKAO_SETUP.md</code> 를
-          참고하세요.
+          예약은 Supabase에 저장됩니다. 자동 발송은 Solapi 템플릿 심사 통과 후 매일 오전 9시(KST)
+          크론으로 전송됩니다. 운영 설정은 <code className="text-gray-500">docs/SOLAPI_KAKAO_SETUP.md</code>
         </p>
       </div>
     </PageShell>

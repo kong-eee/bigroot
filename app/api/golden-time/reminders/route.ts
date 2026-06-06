@@ -5,6 +5,7 @@ import {
   normalizePhoneKr,
   type GoldenPropertyType,
 } from '@/lib/golden-time-schedule';
+import { getAlimtalkReadiness } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,10 +152,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    const readiness = getAlimtalkReadiness();
+
     return NextResponse.json({
       success: true,
       reminder: rowToPayload(data as Record<string, unknown>),
       schedule,
+      alimtalk: {
+        sendEnabled: readiness.sendEnabled,
+        status: readiness.status,
+        message: readiness.message,
+      },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : '저장 실패';

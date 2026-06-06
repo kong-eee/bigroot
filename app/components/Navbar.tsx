@@ -11,6 +11,7 @@ import {
 } from '@/lib/notifications-client';
 import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
+import BrandLogo from './BrandLogo';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -298,14 +299,7 @@ export default function Navbar() {
 
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/90 backdrop-blur-xl shadow-[0_1px_0_rgba(31,26,20,0.04)]">
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--brand)] text-lg text-[var(--brand-on,#fff)] font-black shadow-[var(--shadow-brand,0_4px_12px_rgba(4,214,32,0.25))]">
-              B
-            </span>
-            <span className="hidden sm:inline text-lg font-black tracking-tight text-[var(--text-primary)] whitespace-nowrap">
-              BIG<span className="text-[var(--brand)]">ROOT</span>
-            </span>
-          </Link>
+          <BrandLogo size="sm" />
 
           <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-0.5">
             {NAV_PRIMARY.map((item) => (

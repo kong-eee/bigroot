@@ -38,7 +38,7 @@ export default function Home() {
                   href="/community"
                   className="px-12 py-6 bg-[var(--brand)] text-[var(--brand-on,#fff)] rounded-2xl font-black text-lg hover:scale-105 hover:shadow-2xl hover:shadow-[var(--brand-soft)] transition-all active:scale-95"
                 >
-                  빅루트 시작하기
+                  커뮤니티
                 </Link>
                 <Link
                   href="/rights-guide"
@@ -49,15 +49,41 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 relative">
-              <div className="w-[450px] max-w-full h-[550px] bg-gradient-to-br from-[var(--brand)] to-[var(--accent)] rounded-[4rem] shadow-3xl rotate-3 flex items-center justify-center text-[10rem] relative overflow-hidden group">
-                <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                🏠
-                <div className="absolute bottom-10 left-10 right-10 bg-white/20 backdrop-blur-md p-6 rounded-3xl border border-white/30 -rotate-3">
-                  <p className="text-white text-lg font-black italic">
-                    &quot;내 집 마련 전까지, 내 권리부터!&quot;
+            <div className="flex-1 w-full max-w-[450px] lg:max-w-none">
+              <div className="ui-panel-dark p-8 sm:p-10 shadow-2xl rounded-[3rem] space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs font-black tracking-widest uppercase text-white/50">
+                    Live checklist
                   </p>
+                  <span className="rounded-full bg-[var(--brand)] px-3 py-1 text-[10px] font-black text-[var(--brand-on,#fff)]">
+                    READY
+                  </span>
                 </div>
+                <p className="text-2xl sm:text-3xl font-black leading-snug">
+                  오늘 할 일을
+                  <br />
+                  <span className="text-[var(--brand)]">한 화면</span>에.
+                </p>
+                <ul className="space-y-3 text-sm font-bold text-white/75">
+                  {[
+                    '전입·확정일자·임대차 신고 타이밍',
+                    '만기·갱신·퇴거 골든타임 알림',
+                    '보증금 반환 분쟁 대응 루트',
+                  ].map((line) => (
+                    <li key={line} className="flex gap-3 items-start">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[var(--brand)] text-[10px] font-black text-[var(--brand-on,#fff)]">
+                        ✓
+                      </span>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/move-in-checklist"
+                  className="block w-full text-center py-4 rounded-2xl bg-[var(--brand)] text-[var(--brand-on,#fff)] font-black text-base hover:scale-[1.02] hover:shadow-xl transition-all active:scale-[0.98]"
+                >
+                  입주 체크리스트 열기
+                </Link>
               </div>
             </div>
           </div>
