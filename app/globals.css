@@ -40,7 +40,7 @@
   color: var(--brand-on);
 }
 
-/* ─── 이전 UI (classic) — #04D620 + 갈색 톤 ─── */
+/* ─── 이전 UI (classic) — 파란색 톤 (레이아웃·디자인 동일) ─── */
 [data-theme='classic'] {
   --bg-page: #f7f3ec;
   --bg-surface: #ffffff;
@@ -48,15 +48,16 @@
   --text-primary: #2a241c;
   --text-secondary: #5c4f42;
   --text-muted: #8f8172;
-  --brand: #04d620;
-  --brand-hover: #03b81a;
-  --brand-soft: #e3fce7;
-  --brand-on: #0f2212;
-  --accent: #7a5c42;
-  --accent-hover: #6a4f38;
-  --accent-soft: #f3ebe2;
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+  --brand-soft: #dbeafe;
+  --brand-on: #ffffff;
+  --accent: #1e40af;
+  --accent-hover: #1e3a8a;
+  --accent-soft: #eff6ff;
   --border: #ddd4c8;
   --shadow: 0 8px 30px rgba(42, 36, 28, 0.1);
+  --shadow-brand: 0 12px 32px rgba(37, 99, 235, 0.22);
   --nav-height: 5rem;
   --radius: 1rem;
   --radius-lg: 1.5rem;
@@ -67,6 +68,29 @@
 [data-theme='classic'] ::selection {
   background: var(--brand-soft);
   color: var(--brand);
+}
+
+[data-theme='classic'] .live-checklist-panel {
+  background: linear-gradient(160deg, #1e40af 0%, #2563eb 52%, #3b82f6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='classic'] .live-checklist-highlight {
+  color: #dbeafe;
+}
+
+[data-theme='classic'] .live-checklist-chip {
+  background: #ffffff;
+  color: #2563eb;
+}
+
+[data-theme='classic'] .live-checklist-cta {
+  background: #ffffff;
+  color: #2563eb;
+}
+
+[data-theme='classic'] .live-checklist-cta:hover {
+  background: #eff6ff;
 }
 
 @theme inline {
@@ -133,6 +157,34 @@ body {
   background: var(--text-primary);
   color: #fff;
   border-radius: var(--radius-xl, var(--radius-lg));
+}
+
+/* 홈 히어로 — 초굵은(뚱뚱한) 디스플레이 타이틀 */
+.ui-hero-title {
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  -webkit-text-stroke: 2.75px currentColor;
+  paint-order: stroke fill;
+  text-shadow:
+    1.5px 0 0 currentColor,
+    -1.5px 0 0 currentColor,
+    0 1.5px 0 currentColor,
+    0 -1.5px 0 currentColor,
+    1px 1px 0 currentColor,
+    -1px -1px 0 currentColor,
+    1px -1px 0 currentColor,
+    -1px 1px 0 currentColor;
+}
+
+@media (max-width: 640px) {
+  .ui-hero-title {
+    -webkit-text-stroke: 2px currentColor;
+    text-shadow:
+      1px 0 0 currentColor,
+      -1px 0 0 currentColor,
+      0 1px 0 currentColor,
+      0 -1px 0 currentColor;
+  }
 }
 
 .ui-badge {

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import ClassicBrandLogo from './ClassicBrandLogo';
 
 export default function Home() {
   return (
@@ -21,7 +22,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <h1 className="text-6xl md:text-8xl font-[1000] text-[var(--text-primary)] leading-[1.05] tracking-tight">
+              <h1 className="ui-hero-title text-6xl md:text-8xl text-[var(--text-primary)] leading-[1.05]">
                 세입자의
                 <br />
                 <span className="text-[var(--brand)] inline-block mt-2">든든한 뿌리.</span>
@@ -50,28 +51,28 @@ export default function Home() {
             </div>
 
             <div className="flex-1 w-full max-w-[450px] lg:max-w-none">
-              <div className="ui-panel-dark p-8 sm:p-10 shadow-2xl rounded-[3rem] space-y-6">
+              <div className="ui-panel-dark live-checklist-panel p-8 sm:p-10 shadow-2xl rounded-[3rem] space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-xs font-black tracking-widest uppercase text-white/50">
                     Live checklist
                   </p>
-                  <span className="rounded-full bg-[var(--brand)] px-3 py-1 text-[10px] font-black text-[var(--brand-on,#fff)]">
+                  <span className="live-checklist-chip rounded-full px-3 py-1 text-[10px] font-black">
                     READY
                   </span>
                 </div>
                 <p className="text-2xl sm:text-3xl font-black leading-snug">
                   오늘 할 일을
                   <br />
-                  <span className="text-[var(--brand)]">한 화면</span>에.
+                  <span className="live-checklist-highlight">한 화면</span>에.
                 </p>
-                <ul className="space-y-3 text-sm font-bold text-white/75">
+                <ul className="space-y-3 text-sm font-bold text-white/90">
                   {[
                     '전입·확정일자·임대차 신고 타이밍',
                     '만기·갱신·퇴거 골든타임 알림',
                     '보증금 반환 분쟁 대응 루트',
                   ].map((line) => (
                     <li key={line} className="flex gap-3 items-start">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[var(--brand)] text-[10px] font-black text-[var(--brand-on,#fff)]">
+                      <span className="live-checklist-chip mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-black">
                         ✓
                       </span>
                       {line}
@@ -80,7 +81,7 @@ export default function Home() {
                 </ul>
                 <Link
                   href="/move-in-checklist"
-                  className="block w-full text-center py-4 rounded-2xl bg-[var(--brand)] text-[var(--brand-on,#fff)] font-black text-base hover:scale-[1.02] hover:shadow-xl transition-all active:scale-[0.98]"
+                  className="live-checklist-cta block w-full text-center py-4 rounded-2xl font-black text-base hover:scale-[1.02] hover:shadow-xl transition-all active:scale-[0.98]"
                 >
                   입주 체크리스트 열기
                 </Link>
@@ -162,9 +163,7 @@ export default function Home() {
       <footer className="py-20 px-8 bg-[var(--text-primary)] text-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
           <div className="space-y-6">
-            <div className="text-3xl font-black tracking-tighter">
-              BIG<span className="text-[var(--brand)]">ROOT</span>
-            </div>
+            <ClassicBrandLogo size="md" href={null} onDark />
             <p className="text-white/60 font-medium max-w-xs">
               세입자가 당당한 세상을 위해 데이터와 법률로 뿌리를 내립니다.
             </p>

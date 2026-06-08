@@ -11,6 +11,7 @@ import {
 } from '@/lib/notifications-client';
 import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
+import ClassicBrandLogo from './ClassicBrandLogo';
 import { usePathname } from 'next/navigation';
 
 function formatUnreadBadge(count: number): string | null {
@@ -269,14 +270,8 @@ export default function Navbar() {
       {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
       <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border)] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-10 h-10 bg-[var(--brand)] rounded-xl flex items-center justify-center text-[var(--brand-on,#fff)] font-black text-xl shrink-0">
-              B
-            </div>
-            <span className="hidden sm:inline text-xl sm:text-2xl font-[1000] tracking-tighter text-[var(--text-primary)] whitespace-nowrap">
-              BIG<span className="text-[var(--brand)]">ROOT</span>
-            </span>
-          </Link>
+          <ClassicBrandLogo size="sm" className="hidden sm:flex" />
+          <ClassicBrandLogo size="sm" href="/" className="sm:hidden [&_span]:hidden" />
 
           <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-5 text-sm font-bold text-[var(--text-secondary)]">
             {NAV_PRIMARY.map((item) => (
