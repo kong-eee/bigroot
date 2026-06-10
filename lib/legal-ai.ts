@@ -193,7 +193,9 @@ export function formatLawExcerpt(articles: HousingLawArticle[]): string {
   return `${combined.slice(0, LEGAL_AI_MAX_LAW_CHARS)}…(발췌)`;
 }
 
-export const LEGAL_AI_SYSTEM_RULES = `역할: 주택임대차보호법 조문을 읽고 세입자 질문에 맞게 풀어 쓰는 안내 도우미 "근방 AI"입니다.
+export const LEGAL_AI_BRAND = "빅루트 AI";
+
+export const LEGAL_AI_SYSTEM_RULES = `역할: 주택임대차보호법 조문을 읽고 세입자 질문에 맞게 풀어 쓰는 안내 도우미 "${LEGAL_AI_BRAND}"입니다.
 말투: 친근한 존댓말(해요체). 질문 상황을 먼저 짚고, 조문 근거로 실질적인 답을 해요.
 금지: "변호사", "법률 자문", "법률 대리" 표현. 조문에 없는 내용은 추측하지 말고 그렇게 밝혀요.
 시작: 인사·자기소개 없이 바로 답변. "안녕하세요, 변호사입니다" 금지.
@@ -234,4 +236,74 @@ export function resolveLawContext(
   const laws = findRelevantLaws(query, lawData);
   const excerpt = trimmed || (laws.length > 0 ? formatLawExcerpt(laws) : "");
   return { excerpt, laws };
+}
+
+const OFFLINE_FOOTER =
+  "※ 정보 안내이며, 중요한 결정은 주민센터·법률구조공단(132)에 확인하세요.";
+
+function lawHasArticle(laws: HousingLawArticle[], article: string): boolean {
+  return laws.some((law) => law.title.startsWith(article));
+}
+
+/** Gemini 장애·쿼터 초과 시 조문 기반 즉시 답변 */
+export function buildOfflineLegalAnswer(
+  query: string,
+  laws: HousingLawArticle[]
+): string | null {
+  if (laws.length === 0) return null;
+
+  const tokens = expandTokens(extractQueryTokens(query));
+  const joined = `${query} ${tokens.join("")}`;
+
+  if (
+    /묵시|말.*없|만기.*지나|연장|갱신|1년|2년/.test(joined) &&
+    /퇴실|나가|이사|해지|통보|통지/.test(joined)
+  ) {
+    return `질문하신 상황을 조문 기준으로 정리해 드릴게요.
+
+1. **묵시적 갱신**: 1년 계약이 끝났는데 양쪽 다 갱신·거절·조건 변경 통지를 하지 않았다면 **제6조**에 따라 **같은 조건으로 다시 임대차한 것**으로 봅니다. 갱신된 존속기간은 **2년**이에요.
+
+2. **퇴실(계약 해지) 통보**: 묵시적으로 갱신된 경우에도 **제6조의2**에 따라 임차인은 **언제든지** 임대인에게 계약 해지를 통지할 수 있어요.
+
+3. **퇴실 시점**: 해지 통지를 임대인이 **받은 날부터 3개월이 지나면** 해지 효력이 생깁니다. 그래서 통보 후 **3개월 뒤 퇴실**하는 흐름이 조문상 맞아요. 만기일 당일 바로 나가는 것과는 달라요.
+
+4. **실무 팁**: 통지가 임대인에게 **실제로 도달**했는지가 중요해요. 내용증명·등기우편·문자 등 증거를 남기는 것이 좋아요.
+
+${OFFLINE_FOOTER}`;
+  }
+
+  if (/보증금|전세|반환/.test(joined)) {
+    return `보증금 관련해서는 아래 조문을 먼저 확인해 보세요.
+
+1. **제3조의2·제4조**: 보증금 반환 청구·지연 시 이자 등 규정이 있어요.
+2. 임대차 종료 후 **보증금 반환을 요구**할 수 있고, 지연되면 **법정이율에 따른 지연손해금**을 청구할 수 있는 경우가 있어요.
+3. 퇴실 전 **점유 상태·수리·공과금 정산**을 정리해 두면 분쟁을 줄일 수 있어요.
+
+${OFFLINE_FOOTER}`;
+  }
+
+  if (/월세|차임|증액|인상|집세/.test(joined)) {
+    return `월세·차임 인상 관련 핵심만 정리해 드릴게요.
+
+1. **제7조**: 차임·보증금은 경제 사정 변동 등으로 **적절하지 않게 된 경우** 증감을 청구할 수 있어요.
+2. 다만 **증액 청구는 직전 증액 후 1년 이내에는 할 수 없어요.**
+3. **제6조의3** 등 갱신·요구권 규정과 함께 보시면 도움이 됩니다.
+
+${OFFLINE_FOOTER}`;
+  }
+
+  const bullets = laws.map((law, index) => {
+    const heading = law.title.split("①")[0]?.trim() ?? law.title;
+    const body = (law.content || law.title).replace(/\s+/g, " ").trim();
+    const snippet = body.length > 220 ? `${body.slice(0, 220)}…` : body;
+    return `${index + 1}. **${heading}** — ${snippet}`;
+  });
+
+  return `관련 조문(${formatLawTitles(laws)})을 바탕으로 핵심만 정리해 드릴게요.
+
+${bullets.join("\n\n")}
+
+더 구체적인 답이 필요하면 「만기 후 3개월」, 「보증금 반환」처럼 상황을 한 줄 더 적어 주세요.
+
+${OFFLINE_FOOTER}`;
 }

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { areAllSlotTemplatesReady } from './template-slots';
 
 export function getSolapiConfig() {
   const apiKey = process.env.SOLAPI_API_KEY?.trim();
@@ -12,7 +13,7 @@ export function getSolapiConfig() {
 
 export function isSolapiKakaoConfigured(): boolean {
   const c = getSolapiConfig();
-  return Boolean(c.apiKey && c.apiSecret && c.from && c.pfId && c.templateId);
+  return Boolean(c.apiKey && c.apiSecret && c.from && c.pfId && areAllSlotTemplatesReady());
 }
 
 export function buildSolapiAuthorization(): string | null {

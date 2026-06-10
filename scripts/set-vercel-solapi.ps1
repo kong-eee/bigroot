@@ -6,9 +6,12 @@ $vars = @(
   'SOLAPI_API_SECRET',
   'SOLAPI_SENDER_PHONE',
   'SOLAPI_KAKAO_PF_ID',
-  'SOLAPI_KAKAO_TEMPLATE_ID',
+  'SOLAPI_KAKAO_TEMPLATE_SLOT_1',
+  'SOLAPI_KAKAO_TEMPLATE_SLOT_2',
+  'SOLAPI_KAKAO_TEMPLATE_SLOT_3',
   'SOLAPI_KAKAO_SEND_ENABLED',
-  'CRON_SECRET'
+  'CRON_SECRET',
+  'SUPABASE_SERVICE_ROLE_KEY'
 )
 
 foreach ($name in $vars) {
@@ -26,4 +29,4 @@ foreach ($name in $vars) {
   npx vercel@latest env add $name production --value $value --yes --sensitive 2>&1 | Out-Host
 }
 
-Write-Host '완료. vercel --prod 로 재배포하세요.'
+Write-Host '완료. npx vercel --prod 로 재배포하세요.'

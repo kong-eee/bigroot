@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
-import { KAKAO_TEMPLATE_DRAFT } from '@/lib/solapi/alimtalk-variables';
+import {
+  ALIMTALK_VARIABLE_EXAMPLES,
+  KAKAO_TEMPLATE_DRAFTS,
+} from '@/lib/solapi/alimtalk-variables';
 import { getAlimtalkReadiness } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +14,8 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     ...readiness,
-    templateDraft: KAKAO_TEMPLATE_DRAFT,
+    templateDrafts: KAKAO_TEMPLATE_DRAFTS,
+    variableExamples: ALIMTALK_VARIABLE_EXAMPLES,
     cronScheduleKst: '매일 오전 9시 (한국시간)',
     docsPath: '/docs/SOLAPI_KAKAO_SETUP.md',
   });

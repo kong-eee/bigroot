@@ -9,7 +9,12 @@ import {
   markNotificationsRead,
   type AppNotification,
 } from '@/lib/notifications-client';
-import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
+import {
+  getNotificationContextTitle,
+  getNotificationHref,
+  getNotificationMessage,
+} from '@/lib/notification-display';
+import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import BrandLogo from './BrandLogo';
 
@@ -222,7 +227,7 @@ export default function Navbar() {
         console.error('알림 읽음 처리 실패:', error);
       }
     }
-    router.push(noti.post_id ? `/community?post=${noti.post_id}` : '/community');
+    router.push(getNotificationHref(noti));
   };
 
   const badgeLabel = formatUnreadBadge(unreadCount);
@@ -301,24 +306,36 @@ export default function Navbar() {
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
           <BrandLogo size="sm" />
 
-          <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-0.5">
-            {NAV_PRIMARY.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`px-2.5 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${
-                  pathname === item.href
-                    ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                    : item.highlight
-                      ? 'text-[var(--brand)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {item.label}
-              </Link>
+          <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-2">
+            {NAV_GROUPS.map((group) => (
+              <NavDropdown
+                key={group.label}
+                label={group.label}
+                links={group.links}
+                pathname={pathname}
+                variant="refresh"
+              />
             ))}
-            <NavDropdown label="내 임대차" links={NAV_LEASE} pathname={pathname} variant="refresh" />
-            <NavDropdown label="더보기" links={NAV_MORE} pathname={pathname} variant="refresh" />
+            <div
+              className="flex items-center gap-x-5 ml-2 pl-5 border-l border-[var(--border)]"
+              aria-label="바로가기"
+            >
+              {NAV_STANDALONE.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`px-2.5 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${
+                    pathname === item.href
+                      ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                      : item.highlight
+                        ? 'text-[var(--brand)]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </nav>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
@@ -361,8 +378,12 @@ export default function Navbar() {
                               <span className="font-black">
                                 {noti.actor?.nickname || '세입자'}
                               </span>
-                              님이{' '}
-                              {noti.type === 'comment' ? '댓글을 달았습니다.' : '추천했습니다.'}
+                              님이 {getNotificationMessage(noti)}
+                              {getNotificationContextTitle(noti) && (
+                                <span className="block text-[10px] text-[var(--text-muted)] font-bold mt-0.5 truncate">
+                                  {getNotificationContextTitle(noti)}
+                                </span>
+                              )}
                             </button>
                           ))
                         )}
@@ -413,16 +434,35 @@ export default function Navbar() {
 
         {menuOpen && (
           <div className="xl:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-var(--nav-height))] overflow-y-auto">
-            <nav className="p-3 space-y-1">
-              {NAV_ALL.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={linkClass(item.href, item.highlight)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <nav className="p-3 space-y-4">
+              {NAV_BAR_ITEMS.map((item) =>
+                item.type === 'group' ? (
+                  <div key={item.group.label}>
+                    <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+                      {item.group.label}
+                    </p>
+                    <div className="space-y-0.5">
+                      {item.group.links.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          className={linkClass(link.href, link.highlight)}
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    key={item.link.href}
+                    href={item.link.href}
+                    className={linkClass(item.link.href, item.link.highlight)}
+                  >
+                    {item.link.label}
+                  </Link>
+                )
+              )}
               {user && (
                 <div className="pt-3 mt-3 border-t border-[var(--border)] space-y-2 px-4">
                   {nickname && (

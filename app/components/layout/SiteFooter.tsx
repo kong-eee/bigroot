@@ -9,7 +9,7 @@ const LINKS = {
   ],
   tools: [
     { href: '/safety-check', label: '안전진단' },
-    { href: '/legal-ai', label: '근방 AI' },
+    { href: '/legal-ai', label: '빅루트 AI' },
     { href: '/lease-timeline', label: '타임라인' },
   ],
 };

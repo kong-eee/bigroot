@@ -36,7 +36,7 @@ export default function ClassicBrandLogo({
         alt="빅루트"
         width={px}
         height={px}
-        className="shrink-0 rounded-full"
+        className="shrink-0 object-contain"
         priority={size !== 'sm'}
       />
       {wordmark}

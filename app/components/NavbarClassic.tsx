@@ -9,7 +9,13 @@ import {
   markNotificationsRead,
   type AppNotification,
 } from '@/lib/notifications-client';
-import { NAV_ALL, NAV_LEASE, NAV_MORE, NAV_PRIMARY } from '@/lib/nav-links';
+import {
+  getNotificationContextTitle,
+  getNotificationHref,
+  getNotificationIcon,
+  getNotificationMessage,
+} from '@/lib/notification-display';
+import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import ClassicBrandLogo from './ClassicBrandLogo';
 import { usePathname } from 'next/navigation';
@@ -226,11 +232,7 @@ export default function Navbar() {
       }
     }
 
-    if (noti.post_id) {
-      router.push(`/community?post=${noti.post_id}`);
-    } else {
-      router.push('/community');
-    }
+    router.push(getNotificationHref(noti));
   };
 
   const badgeLabel = formatUnreadBadge(unreadCount);
@@ -273,24 +275,32 @@ export default function Navbar() {
           <ClassicBrandLogo size="sm" className="hidden sm:flex" />
           <ClassicBrandLogo size="sm" href="/" className="sm:hidden [&_span]:hidden" />
 
-          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-5 text-sm font-bold text-[var(--text-secondary)]">
-            {NAV_PRIMARY.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap hover:text-[var(--brand)] transition-colors ${
-                  pathname === item.href
-                    ? 'text-[var(--brand)]'
-                    : item.highlight
-                      ? 'text-[var(--accent)]'
-                      : ''
-                }`}
-              >
-                {item.label}
-              </Link>
+          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-3 text-sm font-bold text-[var(--text-secondary)]">
+            {NAV_GROUPS.map((group) => (
+              <NavDropdown
+                key={group.label}
+                label={group.label}
+                links={group.links}
+                pathname={pathname}
+                variant="classic"
+              />
             ))}
-            <NavDropdown label="내 임대차" links={NAV_LEASE} pathname={pathname} variant="classic" />
-            <NavDropdown label="더보기" links={NAV_MORE} pathname={pathname} variant="classic" />
+            <div
+              className="flex items-center gap-x-6 ml-1 pl-6 border-l border-[var(--border)]"
+              aria-label="바로가기"
+            >
+              {NAV_STANDALONE.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`whitespace-nowrap px-1 hover:text-[var(--brand)] transition-colors ${
+                    pathname === item.href ? 'text-[var(--brand)]' : ''
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-auto">
@@ -327,20 +337,19 @@ export default function Navbar() {
                               onClick={() => handleNotificationClick(noti)}
                               className={`w-full text-left p-3.5 border-b border-[var(--border)] last:border-0 flex gap-2 items-start hover:bg-[var(--bg-muted)] transition-colors ${!noti.is_read ? 'bg-[var(--brand-soft)]' : ''}`}
                             >
-                              <span>{noti.type === 'comment' ? '💬' : '👍'}</span>
+                              <span>{getNotificationIcon(noti)}</span>
                               <div className="space-y-0.5 flex-1">
                                 <p className="text-[var(--text-secondary)] font-medium">
                                   <span className="font-black text-[var(--text-primary)]">
                                     {noti.actor?.nickname || '세입자'}
                                   </span>
-                                  님이{' '}
-                                  {noti.type === 'comment'
-                                    ? '댓글을 달았습니다.'
-                                    : '내 글을 추천했습니다.'}
+                                  님이 {getNotificationMessage(noti)}
                                 </p>
-                                <p className="text-[10px] text-[var(--text-muted)] font-bold truncate max-w-[200px]">
-                                  원문: {noti.posts?.title || '게시글'}
-                                </p>
+                                {getNotificationContextTitle(noti) && (
+                                  <p className="text-[10px] text-[var(--text-muted)] font-bold truncate max-w-[200px]">
+                                    {getNotificationContextTitle(noti)}
+                                  </p>
+                                )}
                               </div>
                             </button>
                           ))
@@ -397,20 +406,43 @@ export default function Navbar() {
 
         {menuOpen && (
           <div className="xl:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-5rem)] overflow-y-auto">
-            <div className="p-4 space-y-1">
-              {NAV_ALL.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
-                    pathname === item.href
-                      ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <div className="p-4 space-y-4">
+              {NAV_BAR_ITEMS.map((item) =>
+                item.type === 'group' ? (
+                  <div key={item.group.label}>
+                    <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+                      {item.group.label}
+                    </p>
+                    <div className="space-y-0.5">
+                      {item.group.links.map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
+                            pathname === link.href
+                              ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
+                          }`}
+                        >
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    key={item.link.href}
+                    href={item.link.href}
+                    className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
+                      pathname === item.link.href
+                        ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
+                    }`}
+                  >
+                    {item.link.label}
+                  </Link>
+                )
+              )}
               {user && nickname && (
                 <Link
                   href="/mypage"

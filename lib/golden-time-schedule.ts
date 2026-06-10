@@ -6,14 +6,38 @@ export type GoldenReminderSlot = {
   label: string;
 };
 
+/** YYYY-MM-DD — 한국 로컬 날짜 기준 (UTC 파싱 오차 방지) */
 function parseDate(iso: string): Date {
-  const d = new Date(iso);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
 
 function toIso(d: Date): string {
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function startOfToday(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/** 크론·발송 매칭용 오늘 날짜 (Asia/Seoul) */
+export function todayKstIso(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+/** 마감일 밤 12시까지 유효 → 마감일 당일은 아직 기한 내 */
+export function isGoldenDeadlinePassed(windowEndIso: string, now = new Date()): boolean {
+  const today = startOfToday(now);
+  const deadline = parseDate(windowEndIso);
+  return today > deadline;
 }
 
 function addMonths(base: Date, months: number): Date {
@@ -51,7 +75,6 @@ export function buildReminderSchedule(
   propertyType: GoldenPropertyType,
   today = new Date()
 ): GoldenReminderSlot[] {
-  today.setHours(0, 0, 0, 0);
   const { windowStart, windowEnd } = getRenewalWindow(expiryDate, propertyType);
   const endLabel = propertyType === '상가' ? '1개월' : '2개월';
 
@@ -73,7 +96,8 @@ export function buildReminderSchedule(
     },
   ];
 
-  return candidates.filter((c) => parseDate(c.remindOn) >= today);
+  const todayStart = startOfToday(today);
+  return candidates.filter((c) => parseDate(c.remindOn) >= todayStart);
 }
 
 export function buildKakaoShareText(

@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import GoldenTimeKakaoReminder from '@/app/components/GoldenTimeKakaoReminder';
+import { getRenewalWindow, todayKstIso } from '@/lib/golden-time-schedule';
+
+function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export default function MyPage() {
   const [user, setUser] = useState<any>(null);
@@ -41,27 +48,14 @@ export default function MyPage() {
         setPropertyType(typeStr);
         setPropertyTypeInput(typeStr);
         
-        // ⚙️ 주택/상가 법적 기준에 따른 골든타임 기간 계산
-        const end = new Date(endDateStr);
-        const startPeriod = new Date(end);
-        startPeriod.setMonth(startPeriod.getMonth() - 6); // 둘 다 시작은 6달 전
-        
-        const endPeriod = new Date(end);
-        // ⭐ 주택은 2달 전, 상가는 1달 전이 법적 마감일!
-        if (typeStr === '상가') {
-          endPeriod.setMonth(endPeriod.getMonth() - 1);
-        } else {
-          endPeriod.setMonth(endPeriod.getMonth() - 2);
-        }
+        const { windowStart, windowEnd } = getRenewalWindow(endDateStr, typeStr);
+        setWindowStart(windowStart);
+        setWindowEnd(windowEnd);
 
-        setWindowStart(startPeriod.toISOString().split('T')[0]);
-        setWindowEnd(endPeriod.toISOString().split('T')[0]);
-
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        startPeriod.setHours(0,0,0,0);
-        endPeriod.setHours(0,0,0,0);
-        end.setHours(0,0,0,0);
+        const today = parseLocalDate(todayKstIso());
+        const startPeriod = parseLocalDate(windowStart);
+        const endPeriod = parseLocalDate(windowEnd);
+        const end = parseLocalDate(endDateStr);
 
         // 💡 주택 vs 상가 3가지 상황별 완전히 다른 맞춤형 가이드 세팅
         if (today < startPeriod) {
@@ -113,14 +107,27 @@ export default function MyPage() {
   }, []);
 
   const saveContractDate = async () => {
-    if (!dateInput) return alert("날짜를 선택해주세요!");
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      contract_end_date: dateInput,
-      property_type: propertyTypeInput, // 💾 주택/상가 타입도 함께 저장
-      updated_at: new Date().toISOString(),
-    });
-    if (!error) { setIsEditingDate(false); await fetchMyData(); alert("만기일 및 계약 유형이 저장되었습니다! 💾"); }
+    if (!dateInput) return alert('날짜를 선택해주세요!');
+    try {
+      const res = await fetch('/api/golden-time/reminders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contractEndDate: dateInput,
+          propertyType: propertyTypeInput,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || '저장에 실패했습니다.');
+        return;
+      }
+      setIsEditingDate(false);
+      await fetchMyData();
+      alert('만기일 및 계약 유형이 저장되었습니다. 골든타임 페이지에도 반영됩니다.');
+    } catch {
+      alert('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+    }
   };
 
   const handleDeletePost = async (postId: string) => {
@@ -192,6 +199,13 @@ export default function MyPage() {
                   {tipMessage}
                 </p>
 
+                <GoldenTimeKakaoReminder
+                  contractEndDate={contractEndDate}
+                  propertyType={propertyType}
+                  userId={user.id}
+                  variant="dark"
+                />
+
                 <Link href="/lease-timeline" className="block text-center w-full py-3 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-xs font-black rounded-xl transition-all">
                   전체 타임라인 보기 📅
                 </Link>
@@ -225,6 +239,15 @@ export default function MyPage() {
                   <button onClick={saveContractDate} className="flex-1 py-3 bg-[var(--brand)] text-white font-black text-xs rounded-xl hover:bg-[var(--brand-hover)]">설정 저장</button>
                   {contractEndDate && <button onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); setPropertyTypeInput(propertyType); }} className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">취소</button>}
                 </div>
+
+                {dateInput && (
+                  <GoldenTimeKakaoReminder
+                    contractEndDate={dateInput}
+                    propertyType={propertyTypeInput}
+                    userId={user.id}
+                    variant="dark"
+                  />
+                )}
               </div>
             )}
           </div>

@@ -205,7 +205,7 @@ body {
 .ui-badge-brand {
   border-color: color-mix(in srgb, var(--brand) 35%, var(--border));
   background: var(--brand-soft);
-  color: var(--brand-on);
+  color: var(--brand);
 }
 
 .ui-kicker {

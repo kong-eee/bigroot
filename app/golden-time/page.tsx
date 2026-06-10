@@ -10,6 +10,7 @@ import {
   buildReminderSchedule,
   formatGoldenDateKo,
   getRenewalWindow,
+  isGoldenDeadlinePassed,
   type GoldenPropertyType,
 } from '@/lib/golden-time-schedule';
 
@@ -18,12 +19,30 @@ type SavedReminder = {
   slots: { remindOn: string; label: string; sentAt?: string | null }[];
 };
 
+type TemplateDraftItem = {
+  slot: 1 | 2 | 3;
+  label: string;
+  draft: string;
+};
+
 type AlimtalkConfig = {
   sendEnabled: boolean;
   status: 'pending_template' | 'ready_to_send' | 'missing_credentials';
   message: string;
-  templateDraft?: string;
+  templateDrafts?: TemplateDraftItem[];
 };
+
+const ALIMTALK_STEPS = [
+  { n: '1', title: '만기일 입력', desc: '계약 종료일을 선택하세요' },
+  { n: '2', title: '기한 자동 계산', desc: '갱신·통보 가능 기간을 보여 드려요' },
+  { n: '3', title: '카톡 알림 예약', desc: '중요 날짜에 알림톡 3회 발송' },
+] as const;
+
+const REMINDER_LABELS = [
+  { slot: 1, title: '통보 가능 시작', desc: '만기 6개월 전 — 갱신·해지 의사를 낼 수 있는 날' },
+  { slot: 2, title: '마감 7일 전', desc: '통보 마감이 다가왔을 때 한 번 더 안내' },
+  { slot: 3, title: '마감일 당일', desc: '오늘 밤 12시까지 의사가 도달해야 하는 날' },
+] as const;
 
 export default function GoldenTimePage() {
   const [activeTab, setActiveTab] = useState<'residential' | 'commercial'>('residential');
@@ -35,20 +54,18 @@ export default function GoldenTimePage() {
   const [saved, setSaved] = useState<SavedReminder | null>(null);
   const [loadingReminder, setLoadingReminder] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const [alimtalk, setAlimtalk] = useState<AlimtalkConfig | null>(null);
 
   const propertyType: GoldenPropertyType = activeTab === 'residential' ? '주택' : '상가';
+  const accent = activeTab === 'residential' ? 'blue' : 'orange';
 
   const calculatedDates = useMemo(() => {
     if (!expiryDate) return null;
     const { windowStart, windowEnd } = getRenewalWindow(expiryDate, propertyType);
-    const start = formatGoldenDateKo(windowStart);
-    const limit = formatGoldenDateKo(windowEnd);
     return {
-      start,
-      limit,
-      isOver: new Date() > new Date(windowEnd),
+      start: formatGoldenDateKo(windowStart),
+      limit: formatGoldenDateKo(windowEnd),
+      isOver: isGoldenDeadlinePassed(windowEnd),
     };
   }, [expiryDate, propertyType]);
 
@@ -72,6 +89,10 @@ export default function GoldenTimePage() {
         setPhone(data.reminder.phone);
       } else {
         setSaved(null);
+        if (data.profile?.contractEndDate) {
+          setExpiryDate(data.profile.contractEndDate);
+          setActiveTab(data.profile.propertyType === '상가' ? 'commercial' : 'residential');
+        }
       }
     } catch {
       setSaved(null);
@@ -89,13 +110,11 @@ export default function GoldenTimePage() {
             sendEnabled: Boolean(data.sendEnabled),
             status: data.status,
             message: data.message ?? '',
-            templateDraft: data.templateDraft,
+            templateDrafts: data.templateDrafts,
           });
         }
       })
-      .catch(() => {
-        setAlimtalk(null);
-      });
+      .catch(() => setAlimtalk(null));
   }, []);
 
   useEffect(() => {
@@ -106,77 +125,69 @@ export default function GoldenTimePage() {
     });
   }, [loadReminder]);
 
-  const copyTemplateDraft = async () => {
-    const text = alimtalk?.templateDraft;
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      alert('카카오 알림톡 심사용 문구를 복사했습니다.\nSolapi 대시보드 → 템플릿 등록에 붙여넣으세요.');
-    } catch {
-      prompt('아래 문구를 복사하세요.', text);
-    }
-  };
-
-  const milestones = {
-    residential: [
-      {
-        time: '계약 체결 후 30일 이내',
-        title: '주택 임대차 신고 (필수)',
-        desc: '보증금 6천만 원 또는 월세 30만 원 초과 시 의무입니다. 신고 시 확정일자가 자동으로 부여되어 내 보증금을 지키는 첫 관문입니다.',
-        warning: '미신고 또는 거짓 신고 시 최대 100만 원의 과태료가 부과됩니다.',
-      },
-      {
-        time: '만기 6~2개월 전',
-        title: '계약갱신요구권 행사',
-        desc: calculatedDates
-          ? `${calculatedDates.limit}까지 반드시 임대인에게 의사가 도달해야 합니다. 1회에 한해 2년 더 살 수 있는 권리입니다.`
-          : "임대인에게 '더 살겠다'는 의사를 명확히 전달해야 하는 골든타임입니다.",
-        warning:
-          "이 기간을 하루라도 넘기면 '묵시적 갱신'이 되어 임대인이 실거주를 이유로 나가라고 할 때 대응이 어렵습니다.",
-      },
-      {
-        time: '묵시적 갱신 중 상시',
-        title: '중도 해지 통보',
-        desc: '계약이 자동 연장된 상태라면 임차인은 언제든 해지를 통보할 수 있습니다. 통보 후 3개월 뒤에 법적 효력이 발생합니다.',
-        warning:
-          '통보 후 3개월간은 월세를 내야 하며, 그 이후에야 보증금 반환 및 임차권등기 신청이 가능합니다.',
-      },
-      {
-        time: '계약 종료 직후',
-        title: '임차권등기명령 신청',
-        desc: '만기가 지났는데도 보증금을 돌려받지 못했다면, 이사를 가기 전 반드시 법원에 신청해야 내 순위가 유지됩니다.',
-        warning:
-          '등기가 완료되기 전(약 2주 소요)에 이사를 가거나 전입을 빼면 보증금 우선변제권이 상실됩니다.',
-      },
-    ],
-    commercial: [
-      {
-        time: '사업 개시 전후',
-        title: '사업자 등록 및 확정일자',
-        desc: '상가 임차인도 관할 세무서에서 확정일자를 받아야 경매 시 후순위보다 먼저 보증금을 변제받을 수 있습니다.',
-        warning: '사업자등록을 하지 않으면 상가임대차보호법의 대항력을 가질 수 없습니다.',
-      },
-      {
-        time: '만기 6~1개월 전',
-        title: '계약갱신요구권 (10년 보장)',
-        desc: '최초 계약일부터 10년 동안 영업을 계속할 권리입니다. 주택보다 1개월 더 늦게까지 가능하지만 절대 늦으면 안 됩니다.',
-        warning: '월세 3회 연체 이력이 있거나 무단 전대 시 10년의 권리가 소멸됩니다.',
-      },
-      {
-        time: '만기 6개월 전 ~ 종료 시',
-        title: '권리금 회수 기회 보호',
-        desc: '신규 임차인을 임대인에게 주선하여 권리금을 받을 수 있는 기간입니다. 임대인이 방해하면 손해배상 청구가 가능합니다.',
-        warning: '종료 후에는 보호받기 어려우므로 반드시 종료 전에 신규 임차인을 주선해야 합니다.',
-      },
-      {
-        time: '상시 주의',
-        title: '3기 차임 연체 경고',
-        desc: '월세 3개월 치에 달하는 금액이 밀리지 않도록 관리하세요. 3기가 되는 순간 모든 권리가 박탈됩니다.',
-        warning:
-          '한 번이라도 3기에 달한 적이 있다면 나중에 다 갚더라도 임대인이 갱신을 거절할 수 있습니다.',
-      },
-    ],
-  };
+  const milestones = useMemo(
+    () => ({
+      residential: [
+        {
+          time: '계약 체결 후 30일 이내',
+          title: '주택 임대차 신고 (필수)',
+          desc: '보증금 6천만 원 또는 월세 30만 원 초과 시 의무입니다. 신고 시 확정일자가 자동으로 부여되어 내 보증금을 지키는 첫 관문입니다.',
+          warning: '미신고 또는 거짓 신고 시 최대 100만 원의 과태료가 부과됩니다.',
+        },
+        {
+          time: '만기 6~2개월 전',
+          title: '계약갱신요구권 행사',
+          desc: calculatedDates
+            ? `${calculatedDates.limit}까지 반드시 임대인에게 의사가 도달해야 합니다. 1회에 한해 2년 더 살 수 있는 권리입니다.`
+            : "임대인에게 '더 살겠다'는 의사를 명확히 전달해야 하는 골든타임입니다.",
+          warning:
+            "이 기간을 하루라도 넘기면 '묵시적 갱신'이 되어 임대인이 실거주를 이유로 나가라고 할 때 대응이 어렵습니다.",
+        },
+        {
+          time: '묵시적 갱신 중 상시',
+          title: '중도 해지 통보',
+          desc: '계약이 자동 연장된 상태라면 임차인은 언제든 해지를 통보할 수 있습니다. 통보 후 3개월 뒤에 법적 효력이 발생합니다.',
+          warning:
+            '통보 후 3개월간은 월세를 내야 하며, 그 이후에야 보증금 반환 및 임차권등기 신청이 가능합니다.',
+        },
+        {
+          time: '계약 종료 직후',
+          title: '임차권등기명령 신청',
+          desc: '만기가 지났는데도 보증금을 돌려받지 못했다면, 이사를 가기 전 반드시 법원에 신청해야 내 순위가 유지됩니다.',
+          warning:
+            '등기가 완료되기 전(약 2주 소요)에 이사를 가거나 전입을 빼면 보증금 우선변제권이 상실됩니다.',
+        },
+      ],
+      commercial: [
+        {
+          time: '사업 개시 전후',
+          title: '사업자 등록 및 확정일자',
+          desc: '상가 임차인도 관할 세무서에서 확정일자를 받아야 경매 시 후순위보다 먼저 보증금을 변제받을 수 있습니다.',
+          warning: '사업자등록을 하지 않으면 상가임대차보호법의 대항력을 가질 수 없습니다.',
+        },
+        {
+          time: '만기 6~1개월 전',
+          title: '계약갱신요구권 (10년 보장)',
+          desc: '최초 계약일부터 10년 동안 영업을 계속할 권리입니다. 주택보다 1개월 더 늦게까지 가능하지만 절대 늦으면 안 됩니다.',
+          warning: '월세 3회 연체 이력이 있거나 무단 전대 시 10년의 권리가 소멸됩니다.',
+        },
+        {
+          time: '만기 6개월 전 ~ 종료 시',
+          title: '권리금 회수 기회 보호',
+          desc: '신규 임차인을 임대인에게 주선하여 권리금을 받을 수 있는 기간입니다. 임대인이 방해하면 손해배상 청구가 가능합니다.',
+          warning: '종료 후에는 보호받기 어려우므로 반드시 종료 전에 신규 임차인을 주선해야 합니다.',
+        },
+        {
+          time: '상시 주의',
+          title: '3기 차임 연체 경고',
+          desc: '월세 3개월 치에 달하는 금액이 밀리지 않도록 관리하세요. 3기가 되는 순간 모든 권리가 박탈됩니다.',
+          warning:
+            '한 번이라도 3기에 달한 적이 있다면 나중에 다 갚더라도 임대인이 갱신을 거절할 수 있습니다.',
+        },
+      ],
+    }),
+    [calculatedDates]
+  );
 
   const registerReminder = async () => {
     if (!expiryDate) return alert('계약 만기일을 먼저 입력해 주세요.');
@@ -208,16 +219,11 @@ export default function GoldenTimePage() {
           label: s.label,
         })),
       });
-      setShowForm(false);
-      if (data.alimtalk?.sendEnabled) {
-        alert(
-          `알림 예약이 완료되었습니다.\n\n${data.schedule.length}회 카카오 알림톡으로 해당 날짜에 자동 발송됩니다.`
-        );
-      } else {
-        alert(
-          `알림 예약이 완료되었습니다.\n\n${data.schedule.length}회 일정이 저장되었습니다.\n카카오 알림톡 템플릿 심사 통과 후 자동 발송이 시작됩니다.`
-        );
-      }
+      alert(
+        data.alimtalk?.sendEnabled
+          ? `예약 완료! ${data.schedule.length}회 카카오 알림톡이 해당 날짜 오전 9시에 발송됩니다.`
+          : `예약 완료! ${data.schedule.length}회 일정이 저장되었습니다.`
+      );
     } catch {
       alert('네트워크 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
@@ -245,59 +251,75 @@ export default function GoldenTimePage() {
     const text = buildKakaoShareText(expiryDate, propertyType, normalized);
     try {
       await navigator.clipboard.writeText(text);
-      alert(
-        '일정 안내 문구를 복사했습니다.\n카카오톡을 열어 「나와의 채팅」 또는 메모장에 붙여넣어 두세요.\n\n자동 문자 발송은 예약 완료 후 해당 날짜에 전송됩니다.'
-      );
+      alert('일정 안내 문구를 복사했습니다.\n카카오톡 메모장에 붙여넣어 두세요.');
     } catch {
       prompt('아래 내용을 복사해 카카오톡에 붙여넣기 하세요.', text);
     }
   };
 
+  const btnPrimary =
+    accent === 'blue'
+      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+      : 'bg-orange-500 hover:bg-orange-600 text-white';
+
   return (
     <PageShell>
       <PageHero
-        badge="골든타임"
-        title="권리 골든타임"
-        description="갱신·통보·신고 등 놓치면 안 되는 날짜를 미리 챙겨 보세요."
+        badge="카카오 알림톡 · 무료"
+        title="갱신·통보 마감일 알림"
+        description="「골든타임」은 임대차 계약에서 하루만 넘겨도 권리가 달라지는 마감일을 뜻합니다. 만기일만 입력하면 카카오 알림톡으로 3번 알려 드립니다."
       />
-      <div className="max-w-2xl mx-auto space-y-8">
-        {alimtalk && (
-          <div
-            className={`rounded-2xl p-4 text-sm font-medium border ${
-              alimtalk.sendEnabled
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : 'bg-amber-50 border-amber-200 text-amber-950'
-            }`}
-          >
-            <p className="font-black text-xs mb-1">
-              {alimtalk.sendEnabled
-                ? '카카오 알림톡 자동 발송 · 활성'
-                : '카카오 알림톡 · 예약 가능 (발송 대기)'}
-            </p>
-            <p className="text-xs leading-relaxed opacity-90">{alimtalk.message}</p>
-            {!alimtalk.sendEnabled && alimtalk.templateDraft && (
-              <button
-                type="button"
-                onClick={() => void copyTemplateDraft()}
-                className="mt-3 text-xs font-black underline"
-              >
-                심사용 템플릿 문구 복사하기
-              </button>
-            )}
-          </div>
-        )}
 
-        <div className="flex bg-white p-1.5 rounded-[2.5rem] shadow-sm border border-gray-100">
+      <div className="max-w-2xl mx-auto space-y-6 pb-12">
+        {/* 골든타임이 뭔지 */}
+        <section className="bg-amber-50 border border-amber-200 rounded-3xl p-6 space-y-3">
+          <h2 className="text-base font-black text-amber-950 flex items-center gap-2">
+            <span className="text-xl" aria-hidden>
+              ⏰
+            </span>
+            골든타임이란?
+          </h2>
+          <p className="text-sm text-amber-950/90 font-medium leading-relaxed">
+            <strong>계약 갱신·해지 의사를 임대인에게 통보해야 하는 법정 기한</strong>입니다. 주택은
+            만기 <strong>2개월 전</strong>, 상가는 <strong>1개월 전</strong> 밤 12시까지 의사가
+            도달해야 합니다. 하루 늦으면 묵시적 갱신될 수 있어, 미리 알림을 받는 것이 안전합니다.
+          </p>
+        </section>
+
+        {/* 3단계 안내 */}
+        <div className="grid grid-cols-3 gap-2">
+          {ALIMTALK_STEPS.map((s) => (
+            <div
+              key={s.n}
+              className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm"
+            >
+              <span
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-black text-white mb-2 ${
+                  accent === 'blue' ? 'bg-blue-600' : 'bg-orange-500'
+                }`}
+              >
+                {s.n}
+              </span>
+              <p className="text-[11px] font-black text-gray-900 leading-tight">{s.title}</p>
+              <p className="text-[9px] text-gray-400 font-medium mt-1 leading-snug">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 유형 선택 */}
+        <div className="flex bg-white p-1.5 rounded-[2rem] shadow-sm border border-gray-100">
           <button
             type="button"
             onClick={() => {
               setActiveTab('residential');
               if (!saved) setExpiryDate('');
             }}
-            className={`flex-1 py-4 rounded-[2rem] flex flex-col items-center gap-1 transition-all ${activeTab === 'residential' ? 'bg-blue-600 text-white shadow-xl' : 'text-gray-400'}`}
+            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all ${
+              activeTab === 'residential' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400'
+            }`}
           >
-            <span className="text-2xl">🏠</span>
-            <span className="text-[11px] font-black">주택 임차인</span>
+            <span className="text-xl">🏠</span>
+            <span className="text-[11px] font-black">주택 (만기 2개월 전)</span>
           </button>
           <button
             type="button"
@@ -305,226 +327,251 @@ export default function GoldenTimePage() {
               setActiveTab('commercial');
               if (!saved) setExpiryDate('');
             }}
-            className={`flex-1 py-4 rounded-[2rem] flex flex-col items-center gap-1 transition-all ${activeTab === 'commercial' ? 'bg-orange-500 text-white shadow-xl' : 'text-gray-400'}`}
+            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all ${
+              activeTab === 'commercial' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400'
+            }`}
           >
-            <span className="text-2xl">🏪</span>
-            <span className="text-[11px] font-black">상가 / 사무실</span>
+            <span className="text-xl">🏪</span>
+            <span className="text-[11px] font-black">상가 (만기 1개월 전)</span>
           </button>
         </div>
 
-        <section className="bg-white p-8 rounded-[3rem] shadow-lg border-2 border-slate-900 space-y-5">
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-black text-gray-900">계약 만기일 입력</h2>
-            <p className="text-xs text-gray-400 font-bold">법원 판례 기준 정확한 기한을 계산합니다.</p>
+        {/* 만기일 + 카톡 예약 (핵심) */}
+        <section className="bg-white rounded-[2rem] shadow-lg border-2 border-slate-900 overflow-hidden">
+          <div className={`px-6 py-4 ${accent === 'blue' ? 'bg-blue-600' : 'bg-orange-500'}`}>
+            <h2 className="text-white font-black text-lg flex items-center gap-2">
+              <span>💬</span> 카카오 알림톡 예약
+            </h2>
+            <p className="text-white/85 text-xs font-medium mt-1">
+              만기일 입력 → 중요 날짜 3회 자동 안내 (오전 9시 발송)
+            </p>
           </div>
 
-          <input
-            type="date"
-            value={expiryDate}
-            onChange={(e) => setExpiryDate(e.target.value)}
-            disabled={!!saved}
-            className="w-full p-5 bg-gray-50 rounded-2xl border-none outline-none font-black text-2xl text-slate-900 focus:ring-2 focus:ring-blue-500 transition-all text-center disabled:opacity-60"
-          />
-
-          {calculatedDates && (
-            <div
-              className={`p-6 rounded-[2.5rem] text-center ${calculatedDates.isOver ? 'bg-red-50 border border-red-100' : 'bg-blue-50 border border-blue-100'}`}
-            >
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-2">
-                갱신요구권 행사 가능 기간
-              </p>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-gray-400">{calculatedDates.start} 부터</span>
-                <span
-                  className={`text-xl font-black ${calculatedDates.isOver ? 'text-red-600' : 'text-blue-600'}`}
-                >
-                  {calculatedDates.limit} 밤 12시까지
-                </span>
-              </div>
-              {calculatedDates.isOver && (
-                <p className="text-[11px] text-red-500 font-black mt-3">
-                  🚨 이미 기한이 지났습니다! 묵시적 갱신 여부를 확인하세요.
-                </p>
-              )}
+          <div className="p-6 space-y-5">
+            <div>
+              <label className="block text-xs font-black text-gray-500 mb-2">
+                계약 만기일
+              </label>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                disabled={!!saved}
+                className="w-full p-4 bg-gray-50 rounded-2xl border-none outline-none font-black text-xl text-slate-900 focus:ring-2 focus:ring-blue-500 text-center disabled:opacity-60"
+              />
             </div>
-          )}
-        </section>
 
-        <div className="relative space-y-6 before:absolute before:left-5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
-          {milestones[activeTab].map((item, i) => (
-            <div key={item.title} className="relative pl-12 group">
+            {calculatedDates && (
               <div
-                className={`absolute left-0 top-1 w-10 h-10 rounded-full border-4 border-gray-50 flex items-center justify-center z-10 transition-all ${
-                  i === 1
-                    ? activeTab === 'residential'
-                      ? 'bg-blue-600 scale-110 shadow-lg'
-                      : 'bg-orange-500 scale-110 shadow-lg'
-                    : 'bg-gray-300'
+                className={`p-5 rounded-2xl text-center ${
+                  calculatedDates.isOver
+                    ? 'bg-red-50 border border-red-100'
+                    : accent === 'blue'
+                      ? 'bg-blue-50 border border-blue-100'
+                      : 'bg-orange-50 border border-orange-100'
                 }`}
               >
-                <div className="w-1.5 h-1.5 bg-white rounded-full" />
-              </div>
-
-              <div
-                className={`bg-white p-7 rounded-[2.5rem] shadow-sm border ${i === 1 ? 'border-blue-200 ring-4 ring-blue-50/50' : 'border-gray-100'}`}
-              >
-                <span
-                  className={`inline-block px-3 py-1 rounded-full text-[10px] font-black mb-3 ${
-                    i === 1 ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-500'
+                <p className="text-[10px] font-black text-gray-500 mb-2">
+                  갱신·해지 통보 가능 기간
+                </p>
+                <p className="text-xs font-bold text-gray-500">{calculatedDates.start} ~</p>
+                <p
+                  className={`text-lg font-black ${
+                    calculatedDates.isOver ? 'text-red-600' : accent === 'blue' ? 'text-blue-700' : 'text-orange-600'
                   }`}
                 >
-                  {item.time}
-                </span>
-                <h3 className="text-lg font-black text-gray-900 mb-2">{item.title}</h3>
-                <p className="text-sm text-gray-500 font-medium leading-relaxed mb-4">{item.desc}</p>
-                <div
-                  className={`p-4 rounded-2xl border-l-4 ${i === 3 || i === 1 ? 'bg-red-50 border-red-500 text-red-700' : 'bg-gray-50 border-gray-300 text-gray-600'}`}
-                >
-                  <p className="text-[11px] font-black leading-relaxed">⚠️ {item.warning}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div
-          className={`p-8 rounded-[3rem] text-center relative overflow-hidden space-y-5 ${
-            activeTab === 'residential' ? 'bg-gray-900' : 'bg-gray-900'
-          }`}
-        >
-          <div className="relative z-10 space-y-4">
-            <p className="text-white text-sm font-bold opacity-80">
-              놓치기 쉬운 골든타임, 카카오 알림톡으로 알려 드릴게요
-            </p>
-
-            {loadingReminder ? (
-              <p className="text-white/60 text-xs font-bold">예약 정보 확인 중...</p>
-            ) : saved ? (
-              <div className="bg-white/10 rounded-2xl p-5 text-left space-y-3">
-                <p className="text-white font-black text-sm">✅ 예약 완료 ({saved.phone})</p>
-                <p className="text-[10px] text-white/70 font-medium">
-                  {alimtalk?.sendEnabled
-                    ? '해당 날짜 오전에 카카오 알림톡이 발송됩니다.'
-                    : '일정 저장됨 · 템플릿 승인 후 자동 발송 시작'}
+                  {calculatedDates.limit} 밤 12시까지
                 </p>
+                {calculatedDates.isOver && (
+                  <p className="text-[11px] text-red-600 font-black mt-2">
+                    기한이 지났습니다. 묵시적 갱신 여부를 확인하세요.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 알림 3회 미리보기 */}
+            {previewSchedule.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-black text-gray-700">보내 드릴 알림 (최대 3회)</p>
                 <ul className="space-y-2">
+                  {previewSchedule.map((s) => {
+                    const meta = REMINDER_LABELS.find((r) => r.slot === s.slot);
+                    return (
+                      <li
+                        key={s.remindOn}
+                        className="flex gap-3 p-3 bg-[#FEE500]/15 border border-[#FEE500]/40 rounded-xl"
+                      >
+                        <span className="text-lg shrink-0" aria-hidden>
+                          🔔
+                        </span>
+                        <div>
+                          <p className="text-xs font-black text-gray-900">
+                            {formatGoldenDateKo(s.remindOn)}
+                            <span className="text-gray-500 font-bold ml-1">
+                              · {meta?.title ?? s.label}
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                            {meta?.desc}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {!expiryDate && (
+              <p className="text-center text-sm text-gray-400 font-medium py-4">
+                ↑ 만기일을 선택하면 알림 일정이 바로 표시됩니다
+              </p>
+            )}
+
+            {/* 예약 UI */}
+            {loadingReminder ? (
+              <p className="text-center text-sm text-gray-400 font-bold py-4">예약 정보 확인 중...</p>
+            ) : saved ? (
+              <div className="space-y-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+                <p className="font-black text-emerald-900 text-sm">
+                  ✅ 알림 예약 완료 · {saved.phone}
+                </p>
+                <p className="text-xs text-emerald-800/80 font-medium">
+                  {alimtalk?.sendEnabled
+                    ? '아래 날짜 오전 9시에 카카오 알림톡이 발송됩니다.'
+                    : '일정이 저장되었습니다.'}
+                </p>
+                <ul className="space-y-1">
                   {saved.slots.map((s) => (
-                    <li key={s.remindOn} className="text-[11px] text-white/90 font-medium">
-                      · {formatGoldenDateKo(s.remindOn)} — {s.label.replace('[빅루트] ', '')}
+                    <li key={s.remindOn} className="text-xs font-medium text-emerald-900">
+                      · {formatGoldenDateKo(s.remindOn)}
                     </li>
                   ))}
                 </ul>
-                <div className="flex flex-col gap-2 pt-2">
+                <div className="flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={shareToKakao}
-                    className={`w-full py-3 rounded-xl font-black text-sm ${
-                      activeTab === 'residential'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-orange-500 text-white'
-                    }`}
+                    className={`w-full py-3 rounded-xl font-black text-sm ${btnPrimary}`}
                   >
-                    카카오톡에 일정 복사하기 📋
+                    일정 카톡에 복사하기
                   </button>
                   <button
                     type="button"
                     onClick={cancelReminder}
-                    className="w-full py-2 text-white/70 text-xs font-bold underline"
+                    className="text-xs font-bold text-emerald-700 underline"
                   >
                     예약 취소
                   </button>
                 </div>
               </div>
             ) : (
-              <>
-                {!user && (
-                  <p className="text-amber-200 text-xs font-bold">
-                    로그인 후 예약할 수 있습니다.{' '}
-                    <Link href="/" className="underline">
-                      홈에서 로그인
-                    </Link>
-                  </p>
-                )}
-
-                {(showForm || !user) && expiryDate && previewSchedule.length > 0 && user && (
-                  <div className="bg-white rounded-2xl p-5 text-left space-y-4 text-gray-900">
-                    <p className="text-xs font-black text-gray-500">보내 드릴 날짜 (미리보기)</p>
-                    <ul className="space-y-1">
-                      {previewSchedule.map((s) => (
-                        <li key={s.remindOn} className="text-[11px] font-medium text-gray-600">
-                          {formatGoldenDateKo(s.remindOn)}
-                        </li>
-                      ))}
-                    </ul>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      placeholder="01012345678"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full p-3 bg-gray-50 rounded-xl font-bold text-sm"
-                    />
-                    <label className="flex items-start gap-2 cursor-pointer">
+              expiryDate &&
+              previewSchedule.length > 0 && (
+                <div className="space-y-4 pt-2 border-t border-gray-100">
+                  {!user && (
+                    <p className="text-sm font-bold text-amber-700 bg-amber-50 rounded-xl p-3 text-center">
+                      예약하려면{' '}
+                      <Link href="/" className="underline font-black">
+                        로그인
+                      </Link>
+                      이 필요합니다
+                    </p>
+                  )}
+                  {user && (
+                    <>
                       <input
-                        type="checkbox"
-                        checked={consent}
-                        onChange={(e) => setConsent(e.target.checked)}
-                        className="mt-0.5"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="휴대폰 번호 (01012345678)"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full p-4 bg-gray-50 rounded-xl font-bold text-base border border-gray-200"
                       />
-                      <span className="text-[10px] font-medium text-gray-500 leading-relaxed">
-                        휴대폰 번호 수집·보관 및 골든타임 카카오 알림톡 발송에 동의합니다. SMS
-                        대체 발송은 하지 않습니다.
-                      </span>
-                    </label>
-                  </div>
-                )}
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={consent}
+                          onChange={(e) => setConsent(e.target.checked)}
+                          className="mt-1"
+                        />
+                        <span className="text-xs font-medium text-gray-600 leading-relaxed">
+                          휴대폰 번호 수집·보관 및 골든타임 카카오 알림톡 발송에 동의합니다.
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={() => void registerReminder()}
+                        className={`w-full py-4 rounded-2xl font-black text-lg shadow-lg transition-all disabled:opacity-50 ${btnPrimary}`}
+                      >
+                        {submitting ? '저장 중...' : '🔔 카카오 알림톡 예약하기'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={shareToKakao}
+                        className="w-full py-2.5 text-sm font-bold text-gray-500 underline"
+                      >
+                        예약 없이 일정만 복사하기
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            )}
 
-                <button
-                  type="button"
-                  disabled={submitting || !expiryDate || previewSchedule.length === 0}
-                  onClick={() => {
-                    if (!user) {
-                      alert('로그인이 필요합니다.');
-                      return;
-                    }
-                    if (!showForm) {
-                      setShowForm(true);
-                      return;
-                    }
-                    void registerReminder();
-                  }}
-                  className={`w-full py-5 rounded-[2rem] font-black transition-all shadow-xl text-lg disabled:opacity-50 ${
-                    activeTab === 'residential'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-orange-500 text-white'
-                  }`}
-                >
-                  {submitting
-                    ? '저장 중...'
-                    : showForm
-                      ? '카카오 알림톡 예약 완료 🔔'
-                      : '카카오 알림톡 예약 🔔'}
-                </button>
-
-                {showForm && (
-                  <button
-                    type="button"
-                    onClick={shareToKakao}
-                    className="w-full py-3 rounded-xl bg-white/10 text-white text-sm font-bold"
-                  >
-                    예약 전 · 일정만 카톡에 복사하기
-                  </button>
-                )}
-              </>
+            {alimtalk?.sendEnabled && (
+              <p className="text-[10px] text-center text-gray-400 font-medium">
+                무료 · 언제든 예약 취소 가능 · SMS 대체 발송 없음
+              </p>
             )}
           </div>
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl" />
-        </div>
+        </section>
 
-        <p className="text-center text-[10px] text-gray-400 font-medium px-4 leading-relaxed">
-          예약은 Supabase에 저장됩니다. 자동 발송은 Solapi 템플릿 심사 통과 후 매일 오전 9시(KST)
-          크론으로 전송됩니다. 운영 설정은 <code className="text-gray-500">docs/SOLAPI_KAKAO_SETUP.md</code>
-        </p>
+        {/* 참고: 전체 일정 */}
+        <section className="space-y-4">
+          <div className="text-center space-y-1 pt-4">
+            <h2 className="text-lg font-black text-gray-900">📚 임대차별 참고 일정</h2>
+            <p className="text-xs text-gray-400 font-medium">
+              알림 외에도 챙겨야 할 법적 절차입니다
+            </p>
+          </div>
+
+          <div className="relative space-y-5 before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+            {milestones[activeTab].map((item, i) => (
+              <div key={item.title} className="relative pl-11">
+                <div
+                  className={`absolute left-0 top-1 w-8 h-8 rounded-full flex items-center justify-center z-10 ${
+                    i === 1
+                      ? accent === 'blue'
+                        ? 'bg-blue-600 shadow-md'
+                        : 'bg-orange-500 shadow-md'
+                      : 'bg-gray-300'
+                  }`}
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                </div>
+                <div
+                  className={`bg-white p-5 rounded-2xl shadow-sm border ${
+                    i === 1 ? 'border-blue-200 ring-2 ring-blue-50' : 'border-gray-100'
+                  }`}
+                >
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-black mb-2 bg-gray-100 text-gray-500">
+                    {item.time}
+                  </span>
+                  <h3 className="text-base font-black text-gray-900 mb-1">{item.title}</h3>
+                  <p className="text-xs text-gray-500 font-medium leading-relaxed mb-3">
+                    {item.desc}
+                  </p>
+                  <p className="text-[10px] font-bold text-red-600 bg-red-50 rounded-lg p-2 leading-relaxed">
+                    ⚠️ {item.warning}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </PageShell>
   );

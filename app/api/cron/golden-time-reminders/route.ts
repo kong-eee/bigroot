@@ -1,23 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase-admin';
 import { buildAlimtalkVariables } from '@/lib/solapi/alimtalk-variables';
-import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
+import { todayKstIso, type GoldenPropertyType } from '@/lib/golden-time-schedule';
 import { getTemplateIdForSlot, sendKakaoAlimtalk } from '@/lib/solapi/alimtalk';
 import { getAlimtalkReadiness, isAlimtalkSendEnabled } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
 
-function todayKstIso(): string {
-  const now = new Date();
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return kst.toISOString().split('T')[0];
-}
-
 function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   if (!secret) return false;
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${secret}`;
+  if (request.headers.get('authorization') === `Bearer ${secret}`) return true;
+  // Vercel 예약 크론 (GET + x-vercel-cron)
+  return (
+    process.env.VERCEL === '1' &&
+    request.headers.get('x-vercel-cron') === '1'
+  );
 }
 
 function isPropertyType(v: unknown): v is GoldenPropertyType {

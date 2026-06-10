@@ -5,6 +5,11 @@ import {
   normalizePhoneKr,
   type GoldenPropertyType,
 } from '@/lib/golden-time-schedule';
+import {
+  applyScheduleToReminderPayload,
+  syncProfileContract,
+  syncReminderContractIfExists,
+} from '@/lib/golden-time-sync';
 import { getAlimtalkReadiness } from '@/lib/solapi/readiness';
 
 export const dynamic = 'force-dynamic';
@@ -47,19 +52,32 @@ export async function GET() {
       return NextResponse.json({ success: true, reminder: null });
     }
 
-    const { data, error } = await supabase
-      .from('golden_time_reminders')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    const [{ data, error }, { data: profile }] = await Promise.all([
+      supabase.from('golden_time_reminders').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('contract_end_date, property_type')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    const profileContract =
+      profile?.contract_end_date &&
+      isPropertyType(String(profile.property_type ?? ''))
+        ? {
+            contractEndDate: String(profile.contract_end_date),
+            propertyType: profile.property_type as GoldenPropertyType,
+          }
+        : null;
+
     return NextResponse.json({
       success: true,
       reminder: data ? rowToPayload(data as Record<string, unknown>) : null,
+      profile: profileContract,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : '조회 실패';
@@ -120,27 +138,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload: Record<string, unknown> = {
+    let payload: Record<string, unknown> = {
       user_id: user.id,
       property_type: propertyType,
       contract_end_date: contractEndDate,
       phone: normalized,
       consent_at: new Date().toISOString(),
-      remind_on_1: null,
-      remind_on_2: null,
-      remind_on_3: null,
-      label_1: null,
-      label_2: null,
-      label_3: null,
       sent_at_1: null,
       sent_at_2: null,
       sent_at_3: null,
     };
 
-    schedule.forEach((s) => {
-      payload[`remind_on_${s.slot}`] = s.remindOn;
-      payload[`label_${s.slot}`] = s.label;
-    });
+    payload = applyScheduleToReminderPayload(payload, contractEndDate, propertyType).payload;
 
     const { data, error } = await supabase
       .from('golden_time_reminders')
@@ -150,6 +159,14 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    const profileSync = await syncProfileContract(supabase, user.id, {
+      contractEndDate,
+      propertyType,
+    });
+    if (profileSync.error) {
+      console.error('profile sync after reminder:', profileSync.error);
     }
 
     const readiness = getAlimtalkReadiness();
@@ -166,6 +183,64 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : '저장 실패';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
+/** 마이페이지 만기일 저장 → profiles + 기존 알림 예약 일정 동기화 */
+export async function PATCH(request: Request) {
+  try {
+    const supabase = await createServerSupabase();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const body = (await request.json()) as {
+      contractEndDate?: string;
+      propertyType?: string;
+    };
+
+    const { contractEndDate, propertyType } = body;
+    if (!contractEndDate || !propertyType || !isPropertyType(propertyType)) {
+      return NextResponse.json(
+        { success: false, error: '만기일과 주택/상가 유형이 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    const profileSync = await syncProfileContract(supabase, user.id, {
+      contractEndDate,
+      propertyType,
+    });
+    if (profileSync.error) {
+      return NextResponse.json({ success: false, error: profileSync.error }, { status: 500 });
+    }
+
+    const reminderSync = await syncReminderContractIfExists(supabase, user.id, {
+      contractEndDate,
+      propertyType,
+    });
+    if (reminderSync.error) {
+      return NextResponse.json({ success: false, error: reminderSync.error }, { status: 500 });
+    }
+
+    const { data: reminder } = await supabase
+      .from('golden_time_reminders')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    return NextResponse.json({
+      success: true,
+      reminderUpdated: reminderSync.updated,
+      reminder: reminder ? rowToPayload(reminder as Record<string, unknown>) : null,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : '동기화 실패';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

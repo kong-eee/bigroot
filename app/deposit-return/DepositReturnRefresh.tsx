@@ -96,7 +96,7 @@ export default function DepositReturnRefresh() {
           내 타임라인
         </Link>
         <Link href="/legal-ai" className="ui-btn-secondary text-sm text-center">
-          근방 AI
+          빅루트 AI
         </Link>
         <Link href="/feedback" className="ui-btn-secondary text-sm text-center">
           문의·요청

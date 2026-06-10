@@ -1,8 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { FEEDBACK_MIGRATION_SQL } from '@/lib/feedback-migration-sql';
+import { notifyNavbarRefresh } from '@/lib/notifications-client';
 import PageHero from '@/app/components/layout/PageHero';
 
 type FeedbackRow = {
@@ -12,11 +15,13 @@ type FeedbackRow = {
   content: string;
   is_public: boolean;
   content_masked?: boolean;
+  admin_reply?: string | null;
+  replied_at?: string | null;
   created_at: string;
   profiles?: { nickname: string | null } | null;
 };
 
-export default function FeedbackPage() {
+function FeedbackPageContent() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [profile, setProfile] = useState<{
     nickname?: string | null;
@@ -30,6 +35,12 @@ export default function FeedbackPage() {
   const [content, setContent] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [schemaReady, setSchemaReady] = useState<boolean | null>(null);
+  const [sqlCopied, setSqlCopied] = useState(false);
+  const searchParams = useSearchParams();
+  const focusId = searchParams.get('focus');
 
   const isAllowed = Boolean(user && profile?.nickname?.trim());
   const isAdmin = profile?.is_admin === true;
@@ -100,6 +111,31 @@ export default function FeedbackPage() {
     fetchItems();
   }, [fetchItems, user?.id, profile?.is_admin]);
 
+  useEffect(() => {
+    if (!isAdmin) {
+      setSchemaReady(null);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/feedback/schema-status')
+      .then((res) => res.json())
+      .then((body: { ready?: boolean }) => {
+        if (!cancelled) setSchemaReady(body.ready === true);
+      })
+      .catch(() => {
+        if (!cancelled) setSchemaReady(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!focusId || loading) return;
+    const el = document.getElementById(`feedback-${focusId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [focusId, loading, items.length]);
+
   const visibleItems = items.filter((row) => {
     if (filter === 'mine' && user) return row.author_id === user.id;
     return true;
@@ -140,7 +176,64 @@ export default function FeedbackPage() {
     setContent('');
     setIsPublic(true);
     alert('문의·요청이 등록되었습니다. 감사합니다!');
+    notifyNavbarRefresh();
     fetchItems();
+  };
+
+  const handleAdminReply = async (row: FeedbackRow) => {
+    if (!isAdmin || !user) return;
+    const text = (replyDrafts[row.id] ?? '').trim();
+    if (text.length < 2) return alert('답변을 2자 이상 입력해 주세요.');
+
+    setReplyingId(row.id);
+    try {
+      const res = await fetch('/api/feedback/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedbackId: row.id, reply: text }),
+      });
+      const body = (await res.json()) as {
+        success?: boolean;
+        error?: string;
+        needsMigration?: boolean;
+      };
+
+      if (!res.ok || !body.success) {
+        if (body.needsMigration) {
+          setSchemaReady(false);
+          alert(
+            '답변 컬럼이 DB에 없습니다.\n\nSupabase 대시보드 → SQL Editor에서 페이지 상단 안내의 SQL을 실행한 뒤 다시 시도해 주세요.'
+          );
+        } else {
+          alert(`답변 저장 실패: ${body.error ?? res.statusText}`);
+        }
+        return;
+      }
+
+      setReplyDrafts((prev) => {
+        const next = { ...prev };
+        delete next[row.id];
+        return next;
+      });
+      setSchemaReady(true);
+      notifyNavbarRefresh();
+      alert('답변이 등록되었습니다. 작성자에게 알림이 전송됩니다.');
+      fetchItems();
+    } catch (e) {
+      alert(`답변 저장 실패: ${e instanceof Error ? e.message : '네트워크 오류'}`);
+    } finally {
+      setReplyingId(null);
+    }
+  };
+
+  const copyMigrationSql = async () => {
+    try {
+      await navigator.clipboard.writeText(FEEDBACK_MIGRATION_SQL);
+      setSqlCopied(true);
+      setTimeout(() => setSqlCopied(false), 2500);
+    } catch {
+      alert('복사에 실패했습니다. Supabase SQL Editor에 supabase/migrations/20260530000000_feedback_notifications.sql 내용을 붙여넣어 주세요.');
+    }
   };
 
   const toggleVisibility = async (row: FeedbackRow) => {
@@ -180,6 +273,34 @@ export default function FeedbackPage() {
             </>
           }
         />
+
+        {isAdmin && schemaReady === false && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 space-y-3 shadow-sm">
+            <p className="text-sm font-black text-amber-900">
+              답변 기능을 쓰려면 DB 마이그레이션이 필요합니다
+            </p>
+            <p className="text-xs font-bold text-amber-800 leading-relaxed">
+              Supabase 대시보드 → SQL Editor → 아래 SQL 복사 후 Run. 실행 후 이 페이지를 새로고침하세요.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void copyMigrationSql()}
+                className="px-4 py-2 bg-amber-700 text-white rounded-lg text-xs font-black hover:bg-amber-800"
+              >
+                {sqlCopied ? '복사됨!' : '마이그레이션 SQL 복사'}
+              </button>
+              <a
+                href="https://supabase.com/dashboard/project/udmqxqzirpolosamzotb/sql/new"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-white border border-amber-300 text-amber-900 rounded-lg text-xs font-black hover:bg-amber-100"
+              >
+                Supabase SQL Editor 열기
+              </a>
+            </div>
+          </div>
+        )}
 
         <div className="relative bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
           {!isAllowed && (
@@ -292,7 +413,10 @@ export default function FeedbackPage() {
               return (
                 <li
                   key={row.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-2"
+                  id={`feedback-${row.id}`}
+                  className={`bg-white rounded-2xl border p-5 shadow-sm space-y-2 ${
+                    focusId === row.id ? 'border-[var(--brand)] ring-2 ring-[var(--brand-soft)]' : 'border-slate-200'
+                  }`}
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-black text-slate-400">
@@ -321,6 +445,43 @@ export default function FeedbackPage() {
                   >
                     {row.content}
                   </p>
+                  {row.admin_reply && (
+                    <div className="mt-3 p-4 rounded-xl bg-blue-50 border border-blue-100 space-y-1">
+                      <p className="text-[10px] font-black text-blue-600">운영자 답변</p>
+                      <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap leading-relaxed">
+                        {row.admin_reply}
+                      </p>
+                      {row.replied_at && (
+                        <p className="text-[10px] text-slate-400 font-bold">
+                          {new Date(row.replied_at).toLocaleString('ko-KR')}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div className="mt-3 pt-3 border-t border-dashed border-slate-200 space-y-2">
+                      <p className="text-[10px] font-black text-amber-700">운영자 답변 작성</p>
+                      <textarea
+                        placeholder="작성자에게 전달할 답변을 입력하세요."
+                        value={replyDrafts[row.id] ?? row.admin_reply ?? ''}
+                        onChange={(e) =>
+                          setReplyDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))
+                        }
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold outline-none focus:border-blue-500 resize-y"
+                      />
+                      <button
+                        type="button"
+                        disabled={replyingId === row.id}
+                        onClick={() => void handleAdminReply(row)}
+                        className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-black hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {replyingId === row.id ? '저장 중…' : row.admin_reply ? '답변 수정' : '답변 등록'}
+                      </button>
+                    </div>
+                  )}
+
                   {(isMine || isAdmin) && (
                     <div className="flex gap-2 pt-2">
                       {isMine && (
@@ -350,5 +511,19 @@ export default function FeedbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function FeedbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="page-main flex items-center justify-center p-8">
+          <p className="text-slate-400 font-bold">불러오는 중…</p>
+        </div>
+      }
+    >
+      <FeedbackPageContent />
+    </Suspense>
   );
 }

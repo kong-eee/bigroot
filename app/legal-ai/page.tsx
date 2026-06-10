@@ -9,6 +9,7 @@ import {
   findRelevantLaws,
   formatLawExcerpt,
   formatLawTitles,
+  LEGAL_AI_BRAND,
   type HousingLawArticle,
 } from '@/lib/legal-ai';
 import PageHero from '@/app/components/layout/PageHero';
@@ -18,12 +19,13 @@ interface Message {
   role: 'user' | 'ai';
   content: string;
   lawTitle?: string;
+  notice?: string;
 }
 
 export default function LegalAIPage() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, role: 'ai', content: '안녕하세요! 주택임대차보호법 조문을 바탕으로 쉽게 풀어 드리는 근방 AI예요. 변호사가 아닌 안내 도우미이니, 궁금한 점을 편하게 물어봐 주세요.' }
+    { id: 1, role: 'ai', content: `안녕하세요! 주택임대차보호법 조문을 바탕으로 쉽게 풀어 드리는 ${LEGAL_AI_BRAND}예요. 변호사가 아닌 안내 도우미이니, 궁금한 점을 편하게 물어봐 주세요.` }
   ]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -42,6 +44,7 @@ export default function LegalAIPage() {
     setIsTyping(true);
     const foundLaws = findRelevantLaws(userQuery, lawData as HousingLawArticle[]);
     let aiResponse = "";
+    let notice: string | undefined;
     let lawTitle = foundLaws.length > 0 ? formatLawTitles(foundLaws) : undefined;
     const lawExcerpt = foundLaws.length > 0 ? formatLawExcerpt(foundLaws) : "";
     try {
@@ -57,6 +60,7 @@ export default function LegalAIPage() {
       if (response.ok) {
         aiResponse = data.text ?? "응답을 받지 못했습니다.";
         if (data.lawRefs) lawTitle = data.lawRefs;
+        if (data.notice) notice = data.notice;
       } else if (data.error === "GEMINI_KEY_NOT_CONFIGURED") {
         aiResponse =
           data.message ??
@@ -72,6 +76,7 @@ export default function LegalAIPage() {
       role: 'ai',
       content: aiResponse,
       lawTitle,
+      notice,
     }]);
     setIsTyping(false);
   };
@@ -80,7 +85,7 @@ export default function LegalAIPage() {
     <div className="page-main flex flex-col min-h-[calc(100vh-var(--nav-height))]">
       <div className="page-container max-w-3xl w-full flex flex-col flex-1 min-h-0">
       <PageHero
-        badge="근방 AI"
+        badge={LEGAL_AI_BRAND}
         title="주택임대차보호법, 쉽게 물어보기"
         description="조문을 바탕으로 안내해 드려요. 법률 자문이 아닌 정보 제공 서비스입니다."
       />
@@ -106,6 +111,7 @@ export default function LegalAIPage() {
             {msg.lawTitle && (
               <div className="mt-2 text-xs bg-emerald-50 text-emerald-800 p-3 rounded-xl border border-emerald-100 w-[80%] opacity-80">
                 <p className="font-bold mb-1">📜 참고 법령: {msg.lawTitle}</p>
+                {msg.notice && <p className="mt-1 text-emerald-700/80">{msg.notice}</p>}
               </div>
             )}
           </div>

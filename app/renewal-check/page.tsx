@@ -79,7 +79,7 @@ export default function RenewalCheckPage() {
     if (!isAlarmAgreed) return alert("알림 문자 발송을 위한 개인정보 동의가 필요합니다.");
     
     // 임시 알림창 (나중에 백엔드 API 연결 시 실제 데이터 전송 로직이 들어갈 자리입니다)
-    alert(`[예약 완료] ${phoneNumber}\n\n입력하신 만기일 기준 3개월 전, 2개월 전에 맞춰 '근방'에서 카카오톡 알림을 보내드릴게요!`);
+    alert(`[예약 완료] ${phoneNumber}\n\n입력하신 만기일 기준 3개월 전, 2개월 전에 맞춰 '빅루트'에서 카카오톡 알림을 보내드릴게요!`);
     setPhoneNumber(''); // 입력창 초기화
     setIsAlarmAgreed(false); // 체크박스 초기화
   };
@@ -159,7 +159,7 @@ export default function RenewalCheckPage() {
             {/* 필승 조언 카드 */}
             <div className="bg-white p-6 rounded-3xl border border-gray-100">
               <h4 className="font-black text-gray-800 flex items-center gap-2 text-sm mb-3">
-                <span>💡</span> 근방 부동산의 '필승' 조언
+                <span>💡</span> 빅루트의 '필승' 조언
               </h4>
               <p className="text-xs text-gray-600 leading-relaxed font-medium">
                 "가장 좋은 연장은 임대료 인상 없는 <strong>묵시적 갱신</strong>입니다. 만약 만료 2개월 전까지 집주인이 조용하다면, 굳이 먼저 갱신권을 쓰겠다고 말할 필요가 없습니다. 가만히 있으면 자동으로 이전 조건 그대로 연장되니까요!"

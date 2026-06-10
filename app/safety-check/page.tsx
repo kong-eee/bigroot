@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { STATIC_SIDO_LIST } from '@/lib/korea-sido';
-import PageHero from '@/app/components/layout/PageHero';
 
 declare global {
   interface Window {
@@ -44,10 +43,8 @@ function calcSafety(jeonseWon: number, limitWon: number) {
 }
 
 export default function SafetyCheckPage() {
-  const [propertyType, setPropertyType] = useState<'villa' | 'officetel'>('villa');
   const [jeonsePrice, setJeonsePrice] = useState<number | ''>('');
   const [officialPrice, setOfficialPrice] = useState<number | ''>('');
-  const [kbPrice, setKbPrice] = useState<number | ''>('');
 
   const [sidoList] = useState<RegionOption[]>([...STATIC_SIDO_LIST]);
   const [sigunguList, setSigunguList] = useState<RegionOption[]>([]);
@@ -312,21 +309,12 @@ export default function SafetyCheckPage() {
   };
 
   const handleCalculateSafety = () => {
-    if (!jeonsePrice) return alert('비교할 전세가격을 입력해 주세요!');
+    if (!jeonsePrice) return alert('비교할 전세보증금을 입력해 주세요.');
+    if (!officialPrice) return alert('주소 조회 후 계약 예정 호실을 선택해 주세요.');
 
     const jeonseWon = Number(jeonsePrice);
-    let limitWon = 0;
-
-    if (propertyType === 'villa') {
-      if (!officialPrice)
-        return alert('호실을 먼저 선택하여 진짜 공시가격을 불러와야 합니다!');
-      // 공시가 × 126% (1원 초과 시 불가)
-      limitWon = Math.floor((Number(officialPrice) * 126) / 100);
-    } else {
-      if (!kbPrice) return alert('KB시세 하위평균가를 입력해 주세요!');
-      limitWon = Math.floor((Number(kbPrice) * 90) / 100);
-    }
-
+    // HUG 다세대주택 기준: 공시가 × 126% (1원 초과 시 불가)
+    const limitWon = Math.floor((Number(officialPrice) * 126) / 100);
     setResult(calcSafety(jeonseWon, limitWon));
   };
 
@@ -341,34 +329,22 @@ export default function SafetyCheckPage() {
 
       <div className="page-main flex flex-col items-center p-4 sm:p-6">
         <div className="w-full max-w-xl space-y-8">
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-3">
             <h2 className="text-3xl font-[1000] text-slate-900 tracking-tight">
-              HUG 보증금 안전 진단기 ⚡
+              HUG 보증금 안전 진단기
             </h2>
-            <p className="text-slate-500 font-bold text-sm leading-relaxed">
-              공시가 API + 네이버 지도 실시간 공간 추적 엔진 결합
+            <p className="text-slate-600 font-bold text-sm leading-relaxed text-left sm:text-center">
+              주소를 선택하고 호실별 공시가격을 불러온 뒤, 전세보증금이 HUG(주택도시보증공사)
+              전세보증 한도(공시가 × 126%) 안에 들어오는지 미리 확인하는 도구입니다.
             </p>
-          </div>
-
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm gap-1 w-full">
-            <button
-              onClick={() => {
-                setPropertyType('villa');
-                setResult(null);
-              }}
-              className={`ui-tab ${propertyType === 'villa' ? 'ui-tab-active' : ''}`}
-            >
-              🏠 빌라/주택 (공시가 126%)
-            </button>
-            <button
-              onClick={() => {
-                setPropertyType('officetel');
-                setResult(null);
-              }}
-              className={`ui-tab ${propertyType === 'officetel' ? 'ui-tab-active' : ''}`}
-            >
-              🏢 오피스텔 (KB시세 90%)
-            </button>
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/80 p-4 text-left text-xs font-bold leading-relaxed text-amber-900">
+              <p className="font-black text-amber-800 mb-1.5">🏠 다세대주택(개별 등기 빌라·연립)만 가능</p>
+              <p>
+                호실마다 등기가 나뉜 다세대주택은 공시가격으로 HUG 한도를 대략 볼 수 있어요.
+                <br/>다가구주택은 공시가 외에도 선순위총보증금·세대 수 등 확인할 항목이 많아
+                이 화면만으로 안전 여부를 판단하기 어렵습니다.
+              </p>
+            </div>
           </div>
 
           <div className="ui-card p-6 sm:p-8 space-y-6">
@@ -462,10 +438,10 @@ export default function SafetyCheckPage() {
               <div className="p-5 bg-blue-50/60 rounded-2xl border border-blue-100/80 space-y-3 animate-in fade-in slide-in-from-top-3 duration-200">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-black text-blue-500 uppercase tracking-wide">
-                    정부 전산망 식별 건물명
+                    조회된 건물명
                   </span>
                   <span className="text-xs font-black text-slate-400">
-                    {roomList.length}개 호실 실시간 로드됨
+                    {roomList.length}개 호실
                   </span>
                 </div>
                 <h4 className="text-base font-black text-slate-900">🏢 {buildingName}</h4>
@@ -475,14 +451,14 @@ export default function SafetyCheckPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-black text-slate-400">
-                    계약 예정인 진짜 호실 선택
+                    계약 예정 호실 선택
                   </label>
                   <select
                     value={selectedRoomId}
                     onChange={(e) => handleRoomSelect(e.target.value)}
                     className="w-full p-3.5 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-800 outline-none focus:border-blue-500 transition-all cursor-pointer"
                   >
-                    <option value="">-- 진짜 등록된 호실 목록 --</option>
+                    <option value="">-- 호실 목록 --</option>
                     {roomList.map((room) => (
                       <option key={room.id} value={room.id}>
                         {room.dong !== '본동' ? `${room.dong} ` : ''}
@@ -524,54 +500,23 @@ export default function SafetyCheckPage() {
               </div>
             </div>
 
-            {propertyType === 'villa' ? (
-              <div className="space-y-2 animate-in fade-in duration-200">
-                <label className="text-xs font-black text-slate-400 tracking-wide">
-                  올해 공동주택 공시가격 (선택 호실 반영값)
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    readOnly
-                    placeholder="위에서 호실을 선택하면 진짜 금액이 꽂힙니다"
-                    value={formatWon(officialPrice)}
-                    className="w-full p-4 bg-slate-100 rounded-2xl border-none outline-none font-black text-base text-blue-600 placeholder:text-slate-300 pr-14"
-                  />
-                  <span className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-black text-blue-500">
-                    원
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black text-slate-400 tracking-wide">
+                올해 공동주택 공시가격 (선택 호실)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  readOnly
+                  placeholder="주소 조회 후 호실을 선택하면 자동 입력됩니다"
+                  value={formatWon(officialPrice)}
+                  className="w-full p-4 bg-slate-100 rounded-2xl border-none outline-none font-black text-base text-blue-600 placeholder:text-slate-300 pr-14"
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-black text-blue-500">
+                  원
+                </span>
               </div>
-            ) : (
-              <div className="space-y-2 animate-in fade-in duration-200">
-                <div className="flex justify-between items-center pl-1">
-                  <label className="text-xs font-black text-slate-400 tracking-wide">
-                    KB시세 하위평균가 수동 입력
-                  </label>
-                  <a
-                    href="https://kbland.kr"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] font-black text-blue-500 hover:underline"
-                  >
-                    ↗️ KB부동산 시세 확인
-                  </a>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="시세 금액을 직접 입력하세요"
-                    value={formatWon(kbPrice)}
-                    onChange={(e) => setKbPrice(parseWonInput(e.target.value))}
-                    className="w-full p-4 bg-slate-50 rounded-2xl border-none outline-none font-black text-base text-slate-900 placeholder:text-slate-300 pr-14 focus:ring-2 focus:ring-orange-400"
-                  />
-                  <span className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">
-                    원
-                  </span>
-                </div>
-              </div>
-            )}
+            </div>
 
             <button
               onClick={handleCalculateSafety}
@@ -610,11 +555,7 @@ export default function SafetyCheckPage() {
               </div>
               <div className="bg-slate-50 p-5 rounded-2xl text-left space-y-2.5 text-xs font-bold text-slate-500">
                 <div className="flex justify-between">
-                  <span>
-                    {propertyType === 'villa'
-                      ? 'HUG 한도 (공시가 × 126%)'
-                      : 'HUG 한도 (KB시세 × 90%)'}
-                  </span>
+                  <span>HUG 한도 (공시가 × 126%)</span>
                   <span className="text-slate-900 font-black">
                     {result.standardLimit.toLocaleString()}원 이하
                   </span>
@@ -627,8 +568,8 @@ export default function SafetyCheckPage() {
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-dashed border-slate-200">
                   {result.isSafe
-                    ? '✨ 본 매물은 허그 보증보험 전세가율 126% 기준을 안전하게 충족하여 보증서 발급이 무난할 것으로 예상됩니다.'
-                    : '🚨 경고: 상한선을 초과하여 가입이 거절되거나 추후 전세금 반환에 차질이 생길 수 있으니 감액 계약을 요구하세요.'}
+                    ? '입력한 보증금이 HUG 다세대주택 기준(공시가 126%) 이내입니다. 실제 가입 심사는 근저당·임대인 신용 등 추가 확인이 있습니다.'
+                    : '보증금이 HUG 한도를 초과합니다. 가입 거절이나 추후 반환 지연 위험이 있으니 보증금 감액을 검토해 보세요.'}
                 </p>
               </div>
             </div>

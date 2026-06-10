@@ -1,4 +1,5 @@
 import { buildSolapiAuthorization, getSolapiConfig, isSolapiKakaoConfigured } from './auth';
+import { getSlotTemplateId, type AlimtalkSlot } from './template-slots';
 
 export type SendResult = { ok: true; messageId?: string } | { ok: false; reason: string };
 
@@ -14,11 +15,10 @@ export async function sendKakaoAlimtalk(
 
   const { from, pfId, templateId } = getSolapiConfig();
   const auth = buildSolapiAuthorization();
-  if (!auth || !from || !pfId || !templateId) {
+  const templateIdToUse = templateIdOverride?.trim() || templateId;
+  if (!auth || !from || !pfId || !templateIdToUse) {
     return { ok: false, reason: 'not_configured' };
   }
-
-  const templateIdToUse = templateIdOverride?.trim() || templateId;
 
   try {
     const res = await fetch('https://api.solapi.com/messages/v4/send', {
@@ -61,8 +61,6 @@ export async function sendKakaoAlimtalk(
   }
 }
 
-export function getTemplateIdForSlot(slot: 1 | 2 | 3): string | undefined {
-  const key = `SOLAPI_KAKAO_TEMPLATE_SLOT_${slot}` as const;
-  const perSlot = process.env[key]?.trim();
-  return perSlot || process.env.SOLAPI_KAKAO_TEMPLATE_ID?.trim();
+export function getTemplateIdForSlot(slot: AlimtalkSlot): string | undefined {
+  return getSlotTemplateId(slot);
 }

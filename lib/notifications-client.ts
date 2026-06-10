@@ -2,11 +2,13 @@ export type AppNotification = {
   id: string;
   user_id: string;
   actor_id: string;
-  post_id: string;
+  post_id: string | null;
+  feedback_id?: string | null;
   type: string;
   is_read: boolean;
   created_at: string;
   posts?: { title: string } | null;
+  feedback_requests?: { title: string } | null;
   actor?: { nickname: string };
 };
 

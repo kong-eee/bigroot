@@ -8,11 +8,13 @@ type NotificationRow = {
   id: string;
   user_id: string;
   actor_id: string;
-  post_id: string;
+  post_id: string | null;
+  feedback_id?: string | null;
   type: string;
   is_read: boolean;
   created_at: string;
   posts?: { title: string } | null;
+  feedback_requests?: { title: string } | null;
 };
 
 async function enrichWithActorNicknames(
@@ -52,7 +54,9 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, user_id, actor_id, post_id, type, is_read, created_at, posts(title)')
+      .select(
+        'id, user_id, actor_id, post_id, feedback_id, type, is_read, created_at, posts(title), feedback_requests(title)'
+      )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50);

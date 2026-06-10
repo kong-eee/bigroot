@@ -97,7 +97,7 @@ export default function DepositReturnClassic() {
             href="/legal-ai"
             className="px-8 py-4 bg-white border-2 border-[var(--border)] font-black rounded-2xl"
           >
-            근방 AI
+            빅루트 AI
           </Link>
         </div>
       </div>
