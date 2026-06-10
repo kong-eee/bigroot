@@ -33,7 +33,7 @@ export default function HomeRefresh() {
                 </div>
               </div>
 
-              <h1 className="ui-hero-title text-5xl md:text-7xl lg:text-8xl text-[var(--text-primary)] leading-[1.05]">
+              <h1 className="ui-hero-title text-4xl sm:text-5xl md:text-7xl lg:text-8xl text-[var(--text-primary)] leading-[1.08] md:leading-[1.05]">
                 세입자의
                 <br />
                 <span className="text-[var(--brand)] inline-block mt-2">든든한 뿌리.</span>

@@ -78,9 +78,20 @@ export default function Navbar() {
   }, [pathname]);
 
   useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    if (!menuOpen) return;
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
     return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
       document.body.style.overflow = '';
+      window.scrollTo(0, scrollY);
     };
   }, [menuOpen]);
 
@@ -405,7 +416,10 @@ export default function Navbar() {
         </div>
 
         {menuOpen && (
-          <div className="xl:hidden border-t border-[var(--border)] bg-[var(--bg-surface)] max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div
+            className="mobile-nav-panel xl:hidden fixed left-0 right-0 bottom-0 z-[99] border-t border-[var(--border)] bg-[var(--bg-surface)] overflow-y-auto pb-28"
+            style={{ top: 'var(--nav-height)' }}
+          >
             <div className="p-4 space-y-4">
               {NAV_BAR_ITEMS.map((item) =>
                 item.type === 'group' ? (

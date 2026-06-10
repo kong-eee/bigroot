@@ -159,32 +159,35 @@ body {
   border-radius: var(--radius-xl, var(--radius-lg));
 }
 
-/* 홈 히어로 — 초굵은(뚱뚱한) 디스플레이 타이틀 */
+/* 홈 히어로 — 모바일은 가볍게, PC(md+)는 초굵은 디스플레이 타이틀 */
 .ui-hero-title {
-  font-weight: 900;
-  letter-spacing: -0.06em;
-  -webkit-text-stroke: 2.75px currentColor;
-  paint-order: stroke fill;
-  text-shadow:
-    1.5px 0 0 currentColor,
-    -1.5px 0 0 currentColor,
-    0 1.5px 0 currentColor,
-    0 -1.5px 0 currentColor,
-    1px 1px 0 currentColor,
-    -1px -1px 0 currentColor,
-    1px -1px 0 currentColor,
-    -1px 1px 0 currentColor;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-@media (max-width: 640px) {
+@media (min-width: 768px) {
   .ui-hero-title {
-    -webkit-text-stroke: 2px currentColor;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    -webkit-text-stroke: 2.75px currentColor;
+    paint-order: stroke fill;
     text-shadow:
-      1px 0 0 currentColor,
-      -1px 0 0 currentColor,
-      0 1px 0 currentColor,
-      0 -1px 0 currentColor;
+      1.5px 0 0 currentColor,
+      -1.5px 0 0 currentColor,
+      0 1.5px 0 currentColor,
+      0 -1.5px 0 currentColor,
+      1px 1px 0 currentColor,
+      -1px -1px 0 currentColor,
+      1px -1px 0 currentColor,
+      -1px 1px 0 currentColor;
   }
+}
+
+/* 모바일 햄버거 메뉴 — 터치 스크롤 */
+.mobile-nav-panel {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .ui-badge {
