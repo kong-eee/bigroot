@@ -18,6 +18,7 @@ import {
 import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import ClassicBrandLogo from './ClassicBrandLogo';
+import SiteSearch from './SiteSearch';
 import { usePathname } from 'next/navigation';
 
 function formatUnreadBadge(count: number): string | null {
@@ -282,11 +283,18 @@ export default function Navbar() {
 
       {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
       <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border)] shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-3">
-          <ClassicBrandLogo size="sm" className="hidden sm:flex" />
-          <ClassicBrandLogo size="sm" href="/" className="sm:hidden [&_span]:hidden" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center gap-2 sm:gap-3">
+          <ClassicBrandLogo
+            size="sm"
+            href="/"
+            className="shrink-0 min-w-0 [&_img]:h-9 [&_img]:w-9 sm:[&_img]:h-12 sm:[&_img]:w-12"
+          />
 
-          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-3 text-sm font-bold text-[var(--text-secondary)]">
+          <div className="hidden md:flex xl:hidden flex-1 min-w-0 max-w-md mx-1 justify-center">
+            <SiteSearch variant="full" />
+          </div>
+
+          <div className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-x-2 2xl:gap-x-3 text-sm font-bold text-[var(--text-secondary)]">
             {NAV_GROUPS.map((group) => (
               <NavDropdown
                 key={group.label}
@@ -297,7 +305,7 @@ export default function Navbar() {
               />
             ))}
             <div
-              className="flex items-center gap-x-6 ml-1 pl-6 border-l border-[var(--border)]"
+              className="flex items-center gap-x-4 2xl:gap-x-6 ml-1 pl-4 2xl:pl-6 border-l border-[var(--border)]"
               aria-label="바로가기"
             >
               {NAV_STANDALONE.map((item) => (
@@ -314,7 +322,13 @@ export default function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+            <div className="md:hidden">
+              <SiteSearch variant="icon" />
+            </div>
+            <div className="hidden xl:block">
+              <SiteSearch variant="icon" />
+            </div>
             {user ? (
               <div className="flex items-center gap-3">
                 <div className="relative" ref={notiContainerRef}>
@@ -415,60 +429,58 @@ export default function Navbar() {
           </div>
         </div>
 
-        {menuOpen && (
-          <div
-            className="mobile-nav-panel xl:hidden fixed left-0 right-0 bottom-0 z-[99] border-t border-[var(--border)] bg-[var(--bg-surface)] overflow-y-auto pb-28"
-            style={{ top: 'var(--nav-height)' }}
-          >
-            <div className="p-4 space-y-4">
-              {NAV_BAR_ITEMS.map((item) =>
-                item.type === 'group' ? (
-                  <div key={item.group.label}>
-                    <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
-                      {item.group.label}
-                    </p>
-                    <div className="space-y-0.5">
-                      {item.group.links.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
-                            pathname === link.href
-                              ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
-                          }`}
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Link
-                    key={item.link.href}
-                    href={item.link.href}
-                    className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
-                      pathname === item.link.href
-                        ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
-                    }`}
-                  >
-                    {item.link.label}
-                  </Link>
-                )
-              )}
-              {user && nickname && (
-                <Link
-                  href="/mypage"
-                  className="block py-3 px-4 rounded-xl text-[15px] font-bold text-[var(--text-primary)] border-t border-[var(--border)] mt-2"
-                >
-                  {nickname} · 마이페이지
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
       </nav>
+
+      {menuOpen && (
+        <div className="mobile-nav-panel xl:hidden fixed inset-0 z-[90] bg-[var(--bg-surface)] overflow-y-auto pb-28 pt-[var(--nav-height)] border-t border-[var(--border)]">
+          <div className="p-4 space-y-4 min-h-full">
+            {NAV_BAR_ITEMS.map((item) =>
+              item.type === 'group' ? (
+                <div key={item.group.label}>
+                  <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+                    {item.group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {item.group.links.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
+                          pathname === link.href
+                            ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  key={item.link.href}
+                  href={item.link.href}
+                  className={`block py-3 px-4 rounded-xl text-[15px] font-bold ${
+                    pathname === item.link.href
+                      ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]'
+                  }`}
+                >
+                  {item.link.label}
+                </Link>
+              )
+            )}
+            {user && nickname && (
+              <Link
+                href="/mypage"
+                className="block py-3 px-4 rounded-xl text-[15px] font-bold text-[var(--text-primary)] border-t border-[var(--border)] mt-2"
+              >
+                {nickname} · 마이페이지
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

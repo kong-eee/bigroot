@@ -17,6 +17,7 @@ import {
 import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import BrandLogo from './BrandLogo';
+import SiteSearch from './SiteSearch';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -315,9 +316,13 @@ export default function Navbar() {
 
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/90 backdrop-blur-xl shadow-[0_1px_0_rgba(31,26,20,0.04)]">
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
-          <BrandLogo size="sm" />
+          <BrandLogo size="sm" className="shrink-0 min-w-0" />
 
-          <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-2">
+          <div className="hidden md:flex xl:hidden flex-1 min-w-0 max-w-md mx-1 justify-center">
+            <SiteSearch variant="full" />
+          </div>
+
+          <nav className="hidden xl:flex flex-1 min-w-0 items-center justify-center gap-1.5 2xl:gap-2">
             {NAV_GROUPS.map((group) => (
               <NavDropdown
                 key={group.label}
@@ -350,6 +355,12 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2 shrink-0 ml-auto">
+            <div className="md:hidden">
+              <SiteSearch variant="icon" />
+            </div>
+            <div className="hidden xl:block">
+              <SiteSearch variant="icon" />
+            </div>
             {user ? (
               <>
                 <div className="relative" ref={notiContainerRef}>
@@ -443,60 +454,58 @@ export default function Navbar() {
           </div>
         </div>
 
-        {menuOpen && (
-          <div
-            className="mobile-nav-panel xl:hidden fixed left-0 right-0 bottom-0 z-[99] border-t border-[var(--border)] bg-[var(--bg-surface)] overflow-y-auto pb-28"
-            style={{ top: 'var(--nav-height)' }}
-          >
-            <nav className="p-3 space-y-4">
-              {NAV_BAR_ITEMS.map((item) =>
-                item.type === 'group' ? (
-                  <div key={item.group.label}>
-                    <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
-                      {item.group.label}
-                    </p>
-                    <div className="space-y-0.5">
-                      {item.group.links.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className={linkClass(link.href, link.highlight)}
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Link
-                    key={item.link.href}
-                    href={item.link.href}
-                    className={linkClass(item.link.href, item.link.highlight)}
-                  >
-                    {item.link.label}
-                  </Link>
-                )
-              )}
-              {user && (
-                <div className="pt-3 mt-3 border-t border-[var(--border)] space-y-2 px-4">
-                  {nickname && (
-                    <Link href="/mypage" className="block font-bold text-[var(--text-primary)]">
-                      {nickname} · 마이페이지
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => supabase.auth.signOut()}
-                    className="text-sm font-bold text-[var(--text-muted)]"
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              )}
-            </nav>
-          </div>
-        )}
       </header>
+
+      {menuOpen && (
+        <div className="mobile-nav-panel xl:hidden fixed inset-0 z-[90] bg-[var(--bg-surface)] overflow-y-auto pb-28 pt-[var(--nav-height)] border-t border-[var(--border)]">
+          <nav className="p-3 space-y-4 min-h-full">
+            {NAV_BAR_ITEMS.map((item) =>
+              item.type === 'group' ? (
+                <div key={item.group.label}>
+                  <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+                    {item.group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {item.group.links.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className={linkClass(link.href, link.highlight)}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  key={item.link.href}
+                  href={item.link.href}
+                  className={linkClass(item.link.href, item.link.highlight)}
+                >
+                  {item.link.label}
+                </Link>
+              )
+            )}
+            {user && (
+              <div className="pt-3 mt-3 border-t border-[var(--border)] space-y-2 px-4">
+                {nickname && (
+                  <Link href="/mypage" className="block font-bold text-[var(--text-primary)]">
+                    {nickname} · 마이페이지
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-sm font-bold text-[var(--text-muted)]"
+                >
+                  로그아웃
+                </button>
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </>
   );
 }

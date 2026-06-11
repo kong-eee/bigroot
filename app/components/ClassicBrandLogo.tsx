@@ -21,7 +21,7 @@ export default function ClassicBrandLogo({
 
   const wordmark = (
     <span
-      className={`text-xl sm:text-2xl font-black tracking-tight whitespace-nowrap ${
+      className={`text-lg leading-none sm:text-xl md:text-2xl font-black tracking-tight whitespace-nowrap ${
         onDark ? 'text-white' : 'text-[var(--text-primary)]'
       }`}
     >

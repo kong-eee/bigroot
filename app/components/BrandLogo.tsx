@@ -29,7 +29,7 @@ export default function BrandLogo({
         priority={size === 'lg' || size === 'xl'}
       />
       {showWordmark && (
-        <span className="hidden sm:inline text-lg font-black tracking-tight text-[var(--text-primary)] whitespace-nowrap">
+        <span className="text-base leading-none sm:text-lg font-black tracking-tight text-[var(--text-primary)] whitespace-nowrap">
           BIG<span className="text-[var(--brand)]">ROOT</span>
         </span>
       )}
