@@ -18,6 +18,14 @@ import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import BrandLogo from './BrandLogo';
 import SiteSearch from './SiteSearch';
+import LoginModal from './LoginModal';
+import ProfileOnboardingModal from './ProfileOnboardingModal';
+import {
+  isProfileOnboardingComplete,
+  parseInterestTypes,
+  toggleInterest,
+} from '@/lib/profile-interests';
+import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -32,7 +40,9 @@ export default function Navbar() {
   const [nickname, setNickname] = useState('');
   const [tempNickname, setTempNickname] = useState('');
   const [gender, setGender] = useState<'남성' | '여성' | null>(null);
+  const [interestTypes, setInterestTypes] = useState<GoldenPropertyType[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -53,16 +63,22 @@ export default function Navbar() {
     async (userId: string) => {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('nickname, gender')
+        .select('nickname, gender, interest_types')
         .eq('id', userId)
         .single();
       if (profile) {
-        const dbNickname = profile.nickname || '';
+        const dbNickname = profile.nickname?.trim() || '';
         setNickname(dbNickname);
         setTempNickname(dbNickname);
         setGender((profile.gender as '남성' | '여성') || null);
+        setInterestTypes(parseInterestTypes(profile.interest_types));
+      } else {
+        setNickname('');
+        setTempNickname('');
+        setGender(null);
+        setInterestTypes([]);
       }
-      if (!profile?.nickname || !profile?.gender) {
+      if (!isProfileOnboardingComplete(profile)) {
         setShowModal(true);
       }
       await loadNotifications();
@@ -103,6 +119,7 @@ export default function Navbar() {
         setNickname('');
         setTempNickname('');
         setGender(null);
+        setInterestTypes([]);
         setNotifications([]);
         setUnreadCount(0);
       }
@@ -185,19 +202,25 @@ export default function Navbar() {
   const saveProfile = async () => {
     if (!tempNickname.trim()) return alert('닉네임을 입력해주세요!');
     if (!gender) return alert('성별을 선택해주세요!');
+    if (interestTypes.length === 0) return alert('관심 분야(주택·상가)를 하나 이상 선택해 주세요.');
 
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      nickname: tempNickname,
-      gender: gender,
-      updated_at: new Date().toISOString(),
+    const res = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nickname: tempNickname,
+        gender,
+        interestTypes,
+      }),
     });
+    const data = await res.json();
 
-    if (error) {
-      if (error.code === '23505') alert('이미 사용 중인 닉네임입니다.');
-      else alert(`오류: ${error.message}`);
+    if (!data.success) {
+      if (res.status === 409) alert('이미 사용 중인 닉네임입니다.');
+      else alert(data.error || `오류가 발생했습니다.`);
     } else {
       setNickname(tempNickname);
+      setInterestTypes(parseInterestTypes(data.profile?.interestTypes));
       setShowModal(false);
       fetchProfileAndNoti(user.id);
       alert(`${tempNickname}님, 환영합니다!`);
@@ -244,13 +267,6 @@ export default function Navbar() {
 
   const badgeLabel = formatUnreadBadge(unreadCount);
 
-  const loginWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}` },
-    });
-  };
-
   const linkClass = (href: string, highlight?: boolean) => {
     const active = pathname === href;
     return `block py-3 px-4 rounded-xl text-[15px] font-bold transition-colors ${
@@ -264,55 +280,22 @@ export default function Navbar() {
 
   return (
     <>
-      {showModal && user && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="ui-card w-full max-w-md p-8 sm:p-10 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="text-4xl">🌱</div>
-              <h2 className="text-2xl font-black text-[var(--text-primary)]">반가워요!</h2>
-              <p className="text-sm font-medium text-[var(--text-secondary)]">
-                닉네임과 성별을 설정하고 빅루트를 시작해 보세요.
-              </p>
-            </div>
-            <input
-              type="text"
-              placeholder="사용할 닉네임"
-              value={tempNickname}
-              onChange={(e) => setTempNickname(e.target.value)}
-              className="ui-input font-bold"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              {(['남성', '여성'] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGender(g)}
-                  className={`py-3 rounded-xl font-bold border ${
-                    gender === g
-                      ? 'bg-[var(--brand)] border-[var(--brand)] text-[var(--brand-on,#fff)]'
-                      : 'bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-secondary)]'
-                  }`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={saveProfile} className="ui-btn-primary w-full text-base">
-              설정 완료
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTempNickname(nickname);
-                setShowModal(false);
-              }}
-              className="w-full text-sm font-bold text-[var(--text-muted)]"
-            >
-              나중에 할게요
-            </button>
-          </div>
-        </div>
-      )}
+      <LoginModal open={showLoginModal} onClose={() => setShowLoginModal(false)} variant="refresh" />
+      <ProfileOnboardingModal
+        open={showModal && Boolean(user)}
+        variant="refresh"
+        nickname={tempNickname}
+        gender={gender}
+        interestTypes={interestTypes}
+        onNicknameChange={setTempNickname}
+        onGenderChange={setGender}
+        onInterestToggle={(type) => setInterestTypes((prev) => toggleInterest(prev, type))}
+        onSave={() => void saveProfile()}
+        onSkip={() => {
+          setTempNickname(nickname);
+          setShowModal(false);
+        }}
+      />
 
       <header className="fixed top-0 left-0 right-0 z-[100] border-b border-[var(--border)] bg-[var(--bg-surface)]/90 backdrop-blur-xl shadow-[0_1px_0_rgba(31,26,20,0.04)]">
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
@@ -438,7 +421,11 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <button type="button" onClick={loginWithGoogle} className="ui-btn-primary text-sm">
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(true)}
+                className="ui-btn-primary text-sm"
+              >
                 로그인
               </button>
             )}

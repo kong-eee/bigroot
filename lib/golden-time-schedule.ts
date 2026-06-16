@@ -129,3 +129,8 @@ export function normalizePhoneKr(input: string): string | null {
   if (/^8210\d{8}$/.test(digits)) return `0${digits.slice(2)}`;
   return null;
 }
+
+/** Supabase Auth Users.phone (E.164) — 01012345678 → +821012345678 */
+export function toAuthPhoneE164Kr(digits010: string): string {
+  return `+82${digits010.slice(1)}`;
+}

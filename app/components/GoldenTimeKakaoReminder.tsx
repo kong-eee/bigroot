@@ -26,7 +26,7 @@ export default function GoldenTimeKakaoReminder({
   userId,
   variant = 'light',
 }: Props) {
-  const [phone, setPhone] = useState('');
+  const [profilePhone, setProfilePhone] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [saved, setSaved] = useState<SavedReminder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,19 +41,28 @@ export default function GoldenTimeKakaoReminder({
   const loadReminder = useCallback(async () => {
     if (!userId) {
       setSaved(null);
+      setProfilePhone(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/golden-time/reminders', { cache: 'no-store' });
-      const data = await res.json();
+      const [reminderRes, profileRes] = await Promise.all([
+        fetch(`/api/golden-time/reminders?propertyType=${encodeURIComponent(propertyType)}`, {
+          cache: 'no-store',
+        }),
+        fetch('/api/profile', { cache: 'no-store' }),
+      ]);
+      const data = await reminderRes.json();
+      const profileData = await profileRes.json();
+
+      setProfilePhone(profileData.profile?.phone ?? data.profilePhone ?? null);
+
       if (data.success && data.reminder) {
         setSaved({
           phone: data.reminder.phone,
           slots: data.reminder.slots ?? [],
         });
-        setPhone(data.reminder.phone);
       } else {
         setSaved(null);
       }
@@ -62,7 +71,7 @@ export default function GoldenTimeKakaoReminder({
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, propertyType]);
 
   useEffect(() => {
     void loadReminder();
@@ -78,7 +87,7 @@ export default function GoldenTimeKakaoReminder({
   const registerReminder = async () => {
     if (!contractEndDate) return alert('계약 만기일을 먼저 입력해 주세요.');
     if (!userId) return alert('알림 예약은 로그인 후 이용할 수 있습니다.');
-    if (!phone.trim()) return alert('휴대폰 번호를 입력해 주세요.');
+    if (!profilePhone) return;
     if (!consent) return alert('개인정보·알림 발송 동의가 필요합니다.');
     if (previewSchedule.length === 0) {
       return alert('알림을 보낼 날짜가 없습니다. 만기일을 다시 확인해 주세요.');
@@ -92,12 +101,16 @@ export default function GoldenTimeKakaoReminder({
         body: JSON.stringify({
           contractEndDate,
           propertyType,
-          phone,
           consent: true,
         }),
       });
       const data = await res.json();
       if (!data.success) {
+        if (data.code === 'PHONE_REQUIRED') {
+          alert(data.error);
+          window.location.href = '/mypage#notification-phone';
+          return;
+        }
         alert(data.error || '예약에 실패했습니다.');
         return;
       }
@@ -121,12 +134,14 @@ export default function GoldenTimeKakaoReminder({
   };
 
   const cancelReminder = async () => {
-    if (!confirm('골든타임 알림 예약을 취소할까요?')) return;
-    const res = await fetch('/api/golden-time/reminders', { method: 'DELETE' });
+    if (!confirm(`${propertyType} 골든타임 알림 예약을 취소할까요?`)) return;
+    const res = await fetch(
+      `/api/golden-time/reminders?propertyType=${encodeURIComponent(propertyType)}`,
+      { method: 'DELETE' }
+    );
     const data = await res.json();
     if (data.success) {
       setSaved(null);
-      setPhone('');
       setConsent(false);
       alert('알림 예약이 취소되었습니다.');
     } else {
@@ -142,9 +157,6 @@ export default function GoldenTimeKakaoReminder({
     : 'bg-[#FEE500]/15 border-[#FEE500]/40';
   const textMuted = isDark ? 'text-slate-400' : 'text-gray-500';
   const textMain = isDark ? 'text-white' : 'text-gray-900';
-  const inputClass = isDark
-    ? 'w-full p-3.5 bg-slate-800 text-white rounded-xl border border-slate-600 font-bold text-sm outline-none focus:border-[#FEE500]'
-    : 'w-full p-4 bg-gray-50 rounded-xl font-bold text-base border border-gray-200';
   const btnClass = isDark
     ? 'w-full py-3.5 bg-[#FEE500] hover:bg-[#FDD835] text-slate-900 rounded-xl font-black text-sm shadow-lg transition-all disabled:opacity-50'
     : 'w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-lg shadow-lg transition-all disabled:opacity-50';
@@ -155,13 +167,19 @@ export default function GoldenTimeKakaoReminder({
         <span className="text-lg" aria-hidden>
           💬
         </span>
-        <p className={`text-xs font-black ${textMain}`}>카카오 알림톡 예약</p>
+        <p className={`text-xs font-black ${textMain}`}>
+          {propertyType} · 카카오 알림톡 예약
+        </p>
       </div>
 
       {loading ? (
         <p className={`text-xs font-bold ${textMuted}`}>예약 정보 확인 중...</p>
       ) : saved ? (
-        <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'}`}>
+        <div
+          className={`p-4 rounded-2xl border space-y-2 ${
+            isDark ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-emerald-50 border-emerald-200'
+          }`}
+        >
           <p className={`text-xs font-black ${isDark ? 'text-emerald-300' : 'text-emerald-900'}`}>
             ✅ 예약 완료 · {saved.phone}
           </p>
@@ -189,13 +207,35 @@ export default function GoldenTimeKakaoReminder({
           </button>
         </div>
       ) : !userId ? (
-        <p className={`text-xs font-bold rounded-xl p-3 text-center ${isDark ? 'text-amber-200 bg-amber-500/10' : 'text-amber-700 bg-amber-50'}`}>
+        <p
+          className={`text-xs font-bold rounded-xl p-3 text-center ${
+            isDark ? 'text-amber-200 bg-amber-500/10' : 'text-amber-700 bg-amber-50'
+          }`}
+        >
           예약하려면{' '}
           <Link href="/" className="underline font-black">
             로그인
           </Link>
           이 필요합니다
         </p>
+      ) : !profilePhone ? (
+        <div
+          className={`rounded-xl p-4 space-y-2 ${
+            isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'
+          }`}
+        >
+          <p className={`text-xs font-bold leading-relaxed ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
+            알림톡을 받으려면 마이페이지에서 본인 휴대폰 번호를 먼저 등록해 주세요.
+          </p>
+          <Link
+            href="/mypage#notification-phone"
+            className={`inline-block text-xs font-black underline ${
+              isDark ? 'text-amber-100' : 'text-amber-800'
+            }`}
+          >
+            마이페이지에서 번호 등록하기 →
+          </Link>
+        </div>
       ) : (
         <div className="space-y-3">
           <ul className={`space-y-1.5 p-3 rounded-xl border ${boxClass}`}>
@@ -205,22 +245,22 @@ export default function GoldenTimeKakaoReminder({
               </li>
             ))}
           </ul>
-          <input
-            type="tel"
-            inputMode="numeric"
-            placeholder="휴대폰 번호 (01012345678)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className={inputClass}
-          />
-          <label className={`flex items-start gap-2 cursor-pointer text-[11px] font-medium leading-relaxed ${textMuted}`}>
+          <p className={`text-xs font-bold ${textMuted}`}>
+            수신 번호: <span className={textMain}>{profilePhone}</span>
+            <span className="block text-[10px] mt-0.5 font-medium">
+              (마이페이지에서 변경)
+            </span>
+          </p>
+          <label
+            className={`flex items-start gap-2 cursor-pointer text-[11px] font-medium leading-relaxed ${textMuted}`}
+          >
             <input
               type="checkbox"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
               className="mt-0.5"
             />
-            휴대폰 번호 수집·보관 및 골든타임 카카오 알림톡 발송에 동의합니다.
+            등록된 휴대폰 번호로 골든타임 카카오 알림톡 발송에 동의합니다.
           </label>
           <button
             type="button"

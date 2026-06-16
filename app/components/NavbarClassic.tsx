@@ -19,6 +19,14 @@ import { NAV_BAR_ITEMS, NAV_GROUPS, NAV_STANDALONE } from '@/lib/nav-links';
 import NavDropdown from './NavDropdown';
 import ClassicBrandLogo from './ClassicBrandLogo';
 import SiteSearch from './SiteSearch';
+import LoginModal from './LoginModal';
+import ProfileOnboardingModal from './ProfileOnboardingModal';
+import {
+  isProfileOnboardingComplete,
+  parseInterestTypes,
+  toggleInterest,
+} from '@/lib/profile-interests';
+import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
 import { usePathname } from 'next/navigation';
 
 function formatUnreadBadge(count: number): string | null {
@@ -35,7 +43,9 @@ export default function Navbar() {
   const [nickname, setNickname] = useState('');
   const [tempNickname, setTempNickname] = useState('');
   const [gender, setGender] = useState<'남성' | '여성' | null>(null);
+  const [interestTypes, setInterestTypes] = useState<GoldenPropertyType[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // 🔔 알림 관련 상태
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -57,16 +67,22 @@ export default function Navbar() {
     async (userId: string) => {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('nickname, gender')
+        .select('nickname, gender, interest_types')
         .eq('id', userId)
         .single();
       if (profile) {
-        const dbNickname = profile.nickname || '';
+        const dbNickname = profile.nickname?.trim() || '';
         setNickname(dbNickname);
         setTempNickname(dbNickname);
         setGender((profile.gender as '남성' | '여성') || null);
+        setInterestTypes(parseInterestTypes(profile.interest_types));
+      } else {
+        setNickname('');
+        setTempNickname('');
+        setGender(null);
+        setInterestTypes([]);
       }
-      if (!profile?.nickname || !profile?.gender) {
+      if (!isProfileOnboardingComplete(profile)) {
         setShowModal(true);
       }
       await loadNotifications();
@@ -121,6 +137,7 @@ export default function Navbar() {
         setNickname('');
         setTempNickname('');
         setGender(null);
+        setInterestTypes([]);
         setNotifications([]);
         setUnreadCount(0);
       }
@@ -193,16 +210,23 @@ export default function Navbar() {
   const saveProfile = async () => {
     if (!tempNickname.trim()) return alert("닉네임을 입력해주세요!");
     if (!gender) return alert('성별을 선택해주세요!');
+    if (interestTypes.length === 0) return alert('관심 분야(주택·상가)를 하나 이상 선택해 주세요.');
     
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id, nickname: tempNickname, gender: gender, updated_at: new Date().toISOString(),
+    const res = await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: tempNickname, gender, interestTypes }),
     });
+    const data = await res.json();
 
-    if (error) {
-      if (error.code === '23505') alert("이미 사용 중인 닉네임입니다. 😭");
-      else alert(`오류: ${error.message}`);
+    if (!data.success) {
+      if (res.status === 409) alert("이미 사용 중인 닉네임입니다. 😭");
+      else alert(data.error || `오류가 발생했습니다.`);
     } else {
-      setNickname(tempNickname); setShowModal(false); fetchProfileAndNoti(user.id);
+      setNickname(tempNickname);
+      setInterestTypes(parseInterestTypes(data.profile?.interestTypes));
+      setShowModal(false);
+      fetchProfileAndNoti(user.id);
       alert(`${tempNickname}님, 환영합니다! 🌱`);
     }
   };
@@ -249,37 +273,28 @@ export default function Navbar() {
 
   const badgeLabel = formatUnreadBadge(unreadCount);
 
-  const loginWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google', options: { redirectTo: `${window.location.origin}` }
-    });
-  };
-
   return (
     <>
-      {/* 🎁 전역 온보딩 모달 (z-[130] 격상) */}
-      {showModal && user && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-[var(--text-primary)]/50 backdrop-blur-md p-4">
-          <div className="bg-[var(--bg-surface)] w-full max-w-md rounded-[2.5rem] p-12 shadow-2xl space-y-8 border border-[var(--border)] relative text-[var(--text-primary)]">
-            <div className="text-center space-y-3">
-              <div className="text-4xl">🌱</div>
-              <h2 className="text-3xl font-black tracking-tight">반가워요!</h2>
-              <p className="text-[var(--text-secondary)] font-bold text-sm leading-relaxed">정보를 입력하고 빅루트를 시작해 보세요.</p>
-            </div>
-            <div className="space-y-5">
-              <input type="text" placeholder="사용할 닉네임을 입력하세요" value={tempNickname} onChange={(e) => setTempNickname(e.target.value)} className="w-full px-6 py-4 bg-[var(--bg-muted)] rounded-2xl border border-[var(--border)] outline-none font-black placeholder:text-[var(--text-muted)] text-base focus:bg-[var(--bg-surface)] focus:border-[var(--brand)] transition-all" />
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setGender('남성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '남성' ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-white shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)]'}`}>남성</button>
-                <button onClick={() => setGender('여성')} className={`py-4 rounded-2xl font-black text-base border transition-all ${gender === '여성' ? 'bg-[var(--text-primary)] border-[var(--text-primary)] text-white shadow-md' : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)]'}`}>여성</button>
-              </div>
-            </div>
-            <div className="space-y-3 pt-2">
-              <button onClick={saveProfile} className="w-full py-5 bg-[var(--brand)] text-[var(--brand-on,#fff)] rounded-2xl font-black text-lg hover:bg-[var(--brand-hover)]">설정 완료하기</button>
-              <button onClick={() => { setTempNickname(nickname); setShowModal(false); }} className="w-full text-center text-sm font-black text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors py-1">나중에 할게요</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        variant="classic"
+      />
+      <ProfileOnboardingModal
+        open={showModal && Boolean(user)}
+        variant="classic"
+        nickname={tempNickname}
+        gender={gender}
+        interestTypes={interestTypes}
+        onNicknameChange={setTempNickname}
+        onGenderChange={setGender}
+        onInterestToggle={(type) => setInterestTypes((prev) => toggleInterest(prev, type))}
+        onSave={() => void saveProfile()}
+        onSkip={() => {
+          setTempNickname(nickname);
+          setShowModal(false);
+        }}
+      />
 
       {/* 🌐 글로벌 공통 상단 네비게이션 바 (가림 원천 차단 무적 치트키 z-[100] 부여) */}
       <nav className="fixed top-0 left-0 right-0 z-[100] w-full bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border)] shadow-sm">
@@ -411,10 +426,10 @@ export default function Navbar() {
             ) : (
               <button
                 type="button"
-                onClick={loginWithGoogle}
+                onClick={() => setShowLoginModal(true)}
                 className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--text-primary)] text-white rounded-2xl text-sm font-black hover:bg-[var(--brand)] hover:text-[var(--brand-on,#fff)] transition-all"
               >
-                시작하기
+                로그인
               </button>
             )}
 

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { syncProfileToAuth } from '@/lib/sync-profile-to-auth';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -8,9 +9,8 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/';
 
   if (code) {
-    // ⚠️ Next.js 15/16 버전부터는 cookies()를 가져올 때 반드시 await를 붙여야 에러가 안 납니다!
     const cookieStore = await cookies();
-    
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -25,20 +25,38 @@ export async function GET(request: Request) {
                 cookieStore.set(name, value, options)
               );
             } catch {
-              // 서버 컴포넌트 환경 등에서 호출될 때의 예외 처리
+              /* Server Component context */
             }
           },
         },
       }
     );
 
-    // 구글 등 외부에 다녀온 인증 코드를 세션 데이터로 교환 및 저장
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nickname, phone, interest_types')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          try {
+            await syncProfileToAuth(user.id, profile);
+          } catch (syncError) {
+            console.error('auth callback profile sync failed:', syncError);
+          }
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // 오류가 발생하면 안전하게 메인 화면으로 리다이렉트 처리
   return NextResponse.redirect(`${origin}`);
 }

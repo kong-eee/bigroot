@@ -9,6 +9,10 @@ export type ContractSyncInput = {
   propertyType: GoldenPropertyType;
 };
 
+function contractColumn(propertyType: GoldenPropertyType): string {
+  return propertyType === '주택' ? 'contract_end_date_housing' : 'contract_end_date_commercial';
+}
+
 export function applyScheduleToReminderPayload(
   payload: Record<string, unknown>,
   contractEndDate: string,
@@ -30,23 +34,25 @@ export function applyScheduleToReminderPayload(
   return { schedule, payload };
 }
 
-/** profiles.contract_end_date · property_type 동기화 */
+/** profiles 만기일 · 유형별 컬럼 동기화 */
 export async function syncProfileContract(
   supabase: SupabaseClient,
   userId: string,
   input: ContractSyncInput
 ): Promise<{ error: string | null }> {
+  const col = contractColumn(input.propertyType);
   const { error } = await supabase.from('profiles').upsert({
     id: userId,
     contract_end_date: input.contractEndDate,
     property_type: input.propertyType,
+    [col]: input.contractEndDate,
     updated_at: new Date().toISOString(),
   });
 
   return { error: error?.message ?? null };
 }
 
-/** 기존 카카오 예약이 있으면 만기일·유형·알림 일정만 갱신 */
+/** 해당 유형 알림 예약이 있으면 만기일·일정 갱신 */
 export async function syncReminderContractIfExists(
   supabase: SupabaseClient,
   userId: string,
@@ -56,6 +62,7 @@ export async function syncReminderContractIfExists(
     .from('golden_time_reminders')
     .select('id')
     .eq('user_id', userId)
+    .eq('property_type', input.propertyType)
     .maybeSingle();
 
   if (fetchError) return { updated: false, error: fetchError.message };
@@ -80,7 +87,8 @@ export async function syncReminderContractIfExists(
   const { error: updateError } = await supabase
     .from('golden_time_reminders')
     .update(payload)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('property_type', input.propertyType);
 
   return { updated: true, error: updateError?.message ?? null };
 }

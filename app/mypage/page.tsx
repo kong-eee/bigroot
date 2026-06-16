@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import GoldenTimeKakaoReminder from '@/app/components/GoldenTimeKakaoReminder';
-import { getRenewalWindow, todayKstIso } from '@/lib/golden-time-schedule';
-
-function parseLocalDate(iso: string): Date {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
+import MypageContractBlock from '@/app/components/MypageContractBlock';
+import {
+  formatInterestsLabel,
+  parseInterestTypes,
+  toggleInterest,
+} from '@/lib/profile-interests';
+import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
 
 export default function MyPage() {
   const [user, setUser] = useState<any>(null);
@@ -17,134 +17,149 @@ export default function MyPage() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 📅 계약 설정 상태 관리 (주택/상가 타입 추가)
-  const [propertyType, setPropertyType] = useState<'주택' | '상가'>('주택');
-  const [propertyTypeInput, setPropertyTypeInput] = useState<'주택' | '상가'>('주택');
-  const [contractEndDate, setContractEndDate] = useState<string>(''); 
-  const [dateInput, setDateInput] = useState<string>(''); 
-  const [isEditingDate, setIsEditingDate] = useState(false); 
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneConsent, setPhoneConsent] = useState(false);
+  const [phoneSaving, setPhoneSaving] = useState(false);
 
-  // 💡 실질적 도움을 주기 위한 계산된 날짜 상태들
-  const [windowStart, setWindowStart] = useState<string>('');
-  const [windowEnd, setWindowEnd] = useState<string>('');
-  const [currentStatus, setCurrentStatus] = useState<string>('');
-  const [statusColor, setStatusColor] = useState<string>('');
-  const [tipMessage, setTipMessage] = useState<string>('');
+  const [housingDate, setHousingDate] = useState('');
+  const [commercialDate, setCommercialDate] = useState('');
+  const [interestTypes, setInterestTypes] = useState<GoldenPropertyType[]>([]);
+  const [interestDraft, setInterestDraft] = useState<GoldenPropertyType[]>([]);
+  const [interestSaving, setInterestSaving] = useState(false);
 
   const fetchMyData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    setUser(authUser);
 
-    if (user) {
-      const { data: pf } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (authUser) {
+      const [{ data: pf }, { data: posts }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', authUser.id).single(),
+        supabase
+          .from('posts')
+          .select('*')
+          .eq('author_id', authUser.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
       setProfile(pf);
-
-      if (pf?.contract_end_date) {
-        const endDateStr = pf.contract_end_date;
-        const typeStr = (pf.property_type as '주택' | '상가') || '주택';
-        
-        setContractEndDate(endDateStr);
-        setDateInput(endDateStr);
-        setPropertyType(typeStr);
-        setPropertyTypeInput(typeStr);
-        
-        const { windowStart, windowEnd } = getRenewalWindow(endDateStr, typeStr);
-        setWindowStart(windowStart);
-        setWindowEnd(windowEnd);
-
-        const today = parseLocalDate(todayKstIso());
-        const startPeriod = parseLocalDate(windowStart);
-        const endPeriod = parseLocalDate(windowEnd);
-        const end = parseLocalDate(endDateStr);
-
-        // 💡 주택 vs 상가 3가지 상황별 완전히 다른 맞춤형 가이드 세팅
-        if (today < startPeriod) {
-          const diff = Math.ceil((startPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          setCurrentStatus(`☕ 아직은 조용히 계셔도 돼요 (타이밍까지 ${diff}일)`);
-          setStatusColor('text-slate-400 bg-white/5 border-white/10');
-          setTipMessage(
-            typeStr === '상가'
-              ? '💡 아직 건물주에게 이야기할 때가 아닙니다. 장사를 더 이어갈지(갱신), 권리금을 받고 나갈지 내 마음속 방향을 편하게 계산해보는 시간으로 삼으세요!'
-              : '💡 아직 집주인에게 먼저 이야기할 때가 아니에요. 이사를 갈지, 재계약을 할지 내 마음속 방향을 편하게 고민해보는 시간으로 삼으세요!'
-          );
-        } else if (today >= startPeriod && today <= endPeriod) {
-          setCurrentStatus(typeStr === '상가' ? '📢 지금이에요! 건물주에게 재계약/해지 통보하기' : '📢 지금이에요! 집주인에게 이사/갱신 통보하기');
-          setStatusColor('text-[var(--brand)] bg-[var(--brand)]/10 border-[var(--brand)]/20');
-          setTipMessage(
-            typeStr === '상가'
-              ? '💡 상가 사장님 주목! 더 장사하고 싶다면 법적으로 총 10년간 보장받는 "계약갱신요구권"을 쓰겠다고 당당히 요구하시고, 나갈 예정이라면 지금 확실히 말해야 권리금 회수 기회(만기 6달 전부터 종료 시까지)를 완벽하게 보호받습니다.'
-              : '💡 진짜 중요한 타이밍이에요! 더 살고 싶다면 "계약갱신요구권"을 쓰겠다고 말씀하시고, 나갈 예정이라면 지금 확실히 종료 의사를 전달해야 보증금을 제때 돌려받습니다. (반드시 문자나 카톡 등 증거를 남겨두세요)'
-          );
-        } else if (today > endPeriod && today <= end) {
-          setCurrentStatus('⚠️ 아차! 통보 기한이 지나 자동 연장 중이에요');
-          setStatusColor('text-amber-500 bg-amber-500/10 border-amber-500/20');
-          setTipMessage(
-            typeStr === '상가'
-              ? '💡 기한 내에 서로 말이 없어 상가 건물 계약이 자동 연장(묵시적 갱신)되었습니다. 법적으로 임대차 기간은 [1년]으로 보장되며, 사장님이 장사하다가 나가고 싶을 때 언제든 해지 통보를 하면 딱 3개월 뒤에 건물주는 보증금을 돌려줘야 합니다!'
-              : '💡 기한 내에 서로 아무 말도 없어 계약이 기존 조건 그대로 자동 연장(묵시적 갱신)되었습니다. 만약 지금이라도 나가길 희망하신다면, 집주인에게 이사 통보를 한 날로부터 딱 3개월 뒤에 법적으로 당당하게 보증금을 돌려받고 나가실 수 있습니다!'
-          );
-        } else {
-          setCurrentStatus('계약 기간이 만료되었습니다.');
-          setStatusColor('text-slate-500 bg-white/5 border-white/10');
-          setTipMessage('💡 현재 지정하신 계약 만기일이 지났습니다. 새로운 시작을 빅루트가 응원합니다!');
-        }
-      } else {
-        setContractEndDate('');
-      }
-
-      const { data: posts } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('author_id', user.id)
-        .order('created_at', { ascending: false });
       setMyPosts(posts || []);
+
+      const profileRes = await fetch('/api/profile', { cache: 'no-store' });
+      const profileApi = await profileRes.json();
+      if (profileApi.success && profileApi.profile) {
+        setPhoneInput(profileApi.profile.phone ?? '');
+        setHousingDate(profileApi.profile.contractEndDateHousing ?? '');
+        setCommercialDate(profileApi.profile.contractEndDateCommercial ?? '');
+        const interests = parseInterestTypes(profileApi.profile.interestTypes);
+        setInterestTypes(interests);
+        setInterestDraft(interests);
+      } else if (pf) {
+        if (pf.phone) setPhoneInput(pf.phone);
+        if (pf.contract_end_date_housing) setHousingDate(pf.contract_end_date_housing);
+        else if (pf.property_type === '주택' && pf.contract_end_date)
+          setHousingDate(pf.contract_end_date);
+        if (pf.contract_end_date_commercial) setCommercialDate(pf.contract_end_date_commercial);
+        else if (pf.property_type === '상가' && pf.contract_end_date)
+          setCommercialDate(pf.contract_end_date);
+        const interests = parseInterestTypes(pf.interest_types);
+        setInterestTypes(interests);
+        setInterestDraft(interests);
+      }
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchMyData();
+    void fetchMyData();
   }, []);
 
-  const saveContractDate = async () => {
-    if (!dateInput) return alert('날짜를 선택해주세요!');
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#notification-phone') {
+      document.getElementById('notification-phone')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [loading]);
+
+  const saveInterests = async () => {
+    if (interestDraft.length === 0) {
+      return alert('관심 분야(주택·상가)를 하나 이상 선택해 주세요.');
+    }
+    setInterestSaving(true);
     try {
-      const res = await fetch('/api/golden-time/reminders', {
+      const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contractEndDate: dateInput,
-          propertyType: propertyTypeInput,
-        }),
+        body: JSON.stringify({ interestTypes: interestDraft }),
       });
       const data = await res.json();
       if (!data.success) {
         alert(data.error || '저장에 실패했습니다.');
         return;
       }
-      setIsEditingDate(false);
-      await fetchMyData();
-      alert('만기일 및 계약 유형이 저장되었습니다. 골든타임 페이지에도 반영됩니다.');
+      const interests = parseInterestTypes(data.profile?.interestTypes);
+      setInterestTypes(interests);
+      setInterestDraft(interests);
+      alert('관심 분야가 저장되었습니다.');
     } catch {
-      alert('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setInterestSaving(false);
+    }
+  };
+
+  const savePhone = async () => {
+    if (!phoneInput.trim()) return alert('휴대폰 번호를 입력해 주세요.');
+    if (!phoneConsent) return alert('휴대폰 번호 저장·알림 발송 동의가 필요합니다.');
+    setPhoneSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneInput, phoneConsent: true }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || '저장에 실패했습니다.');
+        return;
+      }
+      setPhoneInput(data.profile.phone ?? phoneInput);
+      alert('본인 휴대폰 번호가 저장되었습니다. 골든타임 알림에 사용됩니다.');
+      await fetchMyData();
+    } catch {
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setPhoneSaving(false);
     }
   };
 
   const handleDeletePost = async (postId: string) => {
-    if (confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
+    if (confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
       await supabase.from('posts').delete().eq('id', postId);
-      setMyPosts(myPosts.filter(post => post.id !== postId));
+      setMyPosts(myPosts.filter((post) => post.id !== postId));
     }
   };
 
-  if (loading) return <div className="page-main flex items-center justify-center"><div className="text-lg font-black text-[var(--text-muted)] animate-pulse">불러오는 중...</div></div>;
-  if (!user) return <div className="page-main flex flex-col items-center justify-center p-6 text-center space-y-4"><span className="text-5xl">🔒</span><h2 className="text-2xl font-black">로그인이 필요합니다.</h2><Link href="/" className="ui-btn-primary text-sm">홈으로</Link></div>;
+  if (loading)
+    return (
+      <div className="page-main flex items-center justify-center">
+        <div className="text-lg font-black text-[var(--text-muted)] animate-pulse">불러오는 중...</div>
+      </div>
+    );
+  if (!user)
+    return (
+      <div className="page-main flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <span className="text-5xl">🔒</span>
+        <h2 className="text-2xl font-black">로그인이 필요합니다.</h2>
+        <Link href="/" className="ui-btn-primary text-sm">
+          홈으로
+        </Link>
+      </div>
+    );
 
   return (
     <div className="page-main">
       <div className="page-container page-container-wide py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* 프로필 카드 */}
         <div className="lg:col-span-1 space-y-6">
           <div className="ui-card p-8 text-center space-y-4">
             <div className="w-20 h-20 bg-[var(--brand-soft)] text-[var(--brand)] text-3xl font-black rounded-full flex items-center justify-center mx-auto">
@@ -153,107 +168,131 @@ export default function MyPage() {
             <div>
               <h3 className="text-2xl font-black">{profile?.nickname || '닉네임 미설정'}</h3>
               <p className="text-xs font-bold text-slate-400 mt-1">{user?.email}</p>
+              {interestTypes.length > 0 && (
+                <p className="text-[11px] font-bold text-[var(--brand)] mt-2">
+                  관심 분야: {formatInterestsLabel(interestTypes)}
+                </p>
+              )}
             </div>
             <div className="inline-block px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-[11px] font-black text-slate-500">
               성별: {profile?.gender || '미설정'}
             </div>
           </div>
 
-          {/* ⏳ 내 계약 골든타임 섹션 */}
-          <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl translate-x-10 -translate-y-10" />
-            
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-xs font-black text-[var(--brand-soft)] tracking-wider uppercase">Contract Timing</span>
-                <h4 className="text-lg font-black mt-1">내 계약 골든타임</h4> 
-              </div>
-              {/* 주택/상가 뱃지 노출 */}
-              {contractEndDate && !isEditingDate && (
-                <span className="px-3 py-1 bg-blue-600 text-white font-black text-[10px] rounded-full shadow-sm">
-                  {propertyType} 임대차
-                </span>
-              )}
+          <div className="ui-card p-6 space-y-4">
+            <div>
+              <h4 className="text-base font-black text-slate-900">📌 관심 분야</h4>
+              <p className="text-[11px] font-medium text-slate-500 mt-1 leading-relaxed">
+                선택한 분야만 아래 임대차 만기일·골든타임 안내가 표시됩니다.
+              </p>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['주택', '상가'] as const).map((type) => {
+                const selected = interestDraft.includes(type);
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setInterestDraft((prev) => toggleInterest(prev, type))}
+                    className={`py-3 rounded-xl text-xs font-black border transition-all ${
+                      selected
+                        ? type === '주택'
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-orange-500 border-orange-500 text-white'
+                        : 'bg-white border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {type === '주택' ? '🏠' : '🛍️'} {type}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              disabled={interestSaving}
+              onClick={() => void saveInterests()}
+              className="w-full py-2.5 bg-slate-900 text-white text-xs font-black rounded-xl disabled:opacity-50"
+            >
+              {interestSaving ? '저장 중…' : '관심 분야 저장'}
+            </button>
+          </div>
 
-            {contractEndDate && !isEditingDate ? (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className={`p-4 rounded-2xl text-center border font-black text-xs ${statusColor}`}>
-                  {currentStatus}
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
-                  <div>
-                    <p className="text-[11px] font-bold text-slate-400">
-                      {propertyType === '상가' ? '건물주에게 통보해야 하는 기간 (만기 6~1달 전)' : '집주인에게 통보해야 하는 기간 (만기 6~2달 전)'}
-                    </p>
-                    <p className="text-md font-black text-[var(--brand-soft)] mt-1">{windowStart} ~ {windowEnd}</p>
-                  </div>
-                  <div className="border-t border-white/5 pt-3">
-                    <p className="text-[11px] font-bold text-slate-400">확정 만기일</p>
-                    <p className="text-sm font-bold text-white mt-0.5">{contractEndDate}</p>
-                  </div>
-                </div>
-
-                <p className="text-[11px] text-slate-300 font-medium leading-relaxed bg-white/5 p-4 rounded-xl">
-                  {tipMessage}
-                </p>
-
-                <GoldenTimeKakaoReminder
-                  contractEndDate={contractEndDate}
-                  propertyType={propertyType}
-                  userId={user.id}
-                  variant="dark"
-                />
-
-                <Link href="/lease-timeline" className="block text-center w-full py-3 bg-[var(--brand)] hover:bg-[var(--brand-hover)] text-xs font-black rounded-xl transition-all">
-                  전체 타임라인 보기 📅
-                </Link>
-                <button onClick={() => setIsEditingDate(true)} className="block text-center w-full py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-black rounded-xl transition-all">
-                  설정 변경하기 ⚙️
-                </button>
-              </div>
-            ) : (
-              /* ✍️ 입력 및 수정 모드 UI (주택/상가 토글 스위치 추가) */
-              <div className="space-y-5 bg-white/5 p-5 rounded-3xl border border-white/10">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">1. 임대차 종류 선택</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                      onClick={() => setPropertyTypeInput('주택')} 
-                      className={`py-2.5 rounded-xl font-black text-xs border transition-all ${propertyTypeInput === '주택' ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
-                    >🏠 주택(전월세)</button>
-                    <button 
-                      onClick={() => setPropertyTypeInput('상가')} 
-                      className={`py-2.5 rounded-xl font-black text-xs border transition-all ${propertyTypeInput === '상가' ? 'bg-white text-slate-900 border-white' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/30'}`}
-                    >🛍️ 상가(매장/사무실)</button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">2. 계약 만기일 선택</label>
-                  <input type="date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} className="w-full p-3 bg-slate-800 text-white rounded-xl border border-slate-700 outline-none text-sm font-bold" />
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button onClick={saveContractDate} className="flex-1 py-3 bg-[var(--brand)] text-white font-black text-xs rounded-xl hover:bg-[var(--brand-hover)]">설정 저장</button>
-                  {contractEndDate && <button onClick={() => { setIsEditingDate(false); setDateInput(contractEndDate); setPropertyTypeInput(propertyType); }} className="px-4 py-3 bg-slate-700 text-slate-300 font-bold text-xs rounded-xl">취소</button>}
-                </div>
-
-                {dateInput && (
-                  <GoldenTimeKakaoReminder
-                    contractEndDate={dateInput}
-                    propertyType={propertyTypeInput}
-                    userId={user.id}
-                    variant="dark"
-                  />
-                )}
-              </div>
+          <div
+            id="notification-phone"
+            className="ui-card p-6 space-y-4 scroll-mt-24"
+          >
+            <div>
+              <h4 className="text-base font-black text-slate-900">📱 알림 수신 휴대폰</h4>
+              <p className="text-[11px] font-medium text-slate-500 mt-1 leading-relaxed">
+                골든타임 카카오 알림톡을 받을 본인 번호입니다. 주택·상가 알림에 공통으로 사용됩니다.
+              </p>
+            </div>
+            <input
+              type="tel"
+              inputMode="numeric"
+              placeholder="01012345678"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 font-bold text-sm"
+            />
+            <label className="flex items-start gap-2 cursor-pointer text-[11px] font-medium text-slate-600 leading-relaxed">
+              <input
+                type="checkbox"
+                checked={phoneConsent}
+                onChange={(e) => setPhoneConsent(e.target.checked)}
+                className="mt-0.5"
+              />
+              휴대폰 번호 수집·보관 및 골든타임 카카오 알림톡 발송에 동의합니다.
+            </label>
+            <button
+              type="button"
+              disabled={phoneSaving}
+              onClick={() => void savePhone()}
+              className="w-full py-3 bg-[var(--brand)] text-white text-sm font-black rounded-xl disabled:opacity-50"
+            >
+              {phoneSaving ? '저장 중…' : profile?.phone ? '번호 수정 저장' : '본인 번호 등록'}
+            </button>
+            {profile?.phone && (
+              <p className="text-[10px] font-bold text-emerald-700 text-center">
+                등록됨: {profile.phone}
+              </p>
             )}
           </div>
+
+          {interestTypes.includes('주택') ? (
+            <MypageContractBlock
+              propertyType="주택"
+              contractEndDate={housingDate}
+              userId={user.id}
+              onSaved={fetchMyData}
+            />
+          ) : (
+            <div className="ui-card p-5 text-center text-xs font-bold text-slate-400">
+              주택 임대차 관심 분야를 선택하면 만기일·알림 설정이 표시됩니다.
+            </div>
+          )}
+
+          {interestTypes.includes('상가') ? (
+            <MypageContractBlock
+              propertyType="상가"
+              contractEndDate={commercialDate}
+              userId={user.id}
+              onSaved={fetchMyData}
+            />
+          ) : (
+            <div className="ui-card p-5 text-center text-xs font-bold text-slate-400">
+              상가 임대차 관심 분야를 선택하면 만기일·알림 설정이 표시됩니다.
+            </div>
+          )}
+
+          <Link
+            href="/lease-timeline"
+            className="block text-center w-full py-3 ui-card text-xs font-black text-[var(--brand)] hover:border-[var(--brand)]"
+          >
+            전체 타임라인 보기 📅
+          </Link>
         </div>
 
-        {/* 내가 쓴 글 목록 */}
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link href="/lease-timeline" className="ui-card p-5 hover:border-[var(--brand)] transition-colors group">
@@ -275,7 +314,9 @@ export default function MyPage() {
 
           <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-50">
-              <h3 className="text-lg font-black">내가 쓴 이야기 <span className="text-[#007AFF]">{myPosts.length}</span></h3>
+              <h3 className="text-lg font-black">
+                내가 쓴 이야기 <span className="text-[#007AFF]">{myPosts.length}</span>
+              </h3>
               <span className="text-xs text-slate-400 font-bold">커뮤니티 활동 내역</span>
             </div>
 
@@ -283,20 +324,39 @@ export default function MyPage() {
               <div className="text-center py-24 text-slate-300 font-bold space-y-3">
                 <span className="text-4xl block">📝</span>
                 <p className="text-sm">아직 커뮤니티에 작성한 게시글이 없습니다.</p>
-                <Link href="/community" className="inline-block text-xs text-[#007AFF] font-black underline">첫 글 쓰러 가기</Link>
+                <Link href="/community" className="inline-block text-xs text-[#007AFF] font-black underline">
+                  첫 글 쓰러 가기
+                </Link>
               </div>
             ) : (
               <div className="space-y-4">
                 {myPosts.map((post) => (
-                  <div key={post.id} className="p-5 bg-slate-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all flex flex-col justify-between md:flex-row md:items-center gap-4 group">
+                  <div
+                    key={post.id}
+                    className="p-5 bg-slate-50 rounded-2xl border border-transparent hover:border-blue-100 transition-all flex flex-col justify-between md:flex-row md:items-center gap-4 group"
+                  >
                     <div className="space-y-1 flex-1">
-                      <span className="text-[10px] font-bold text-slate-400">{new Date(post.created_at).toLocaleDateString()}</span>
-                      <h4 className="font-black text-slate-900 text-base line-clamp-1 group-hover:text-[var(--brand)] transition-colors">{post.title}</h4>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {new Date(post.created_at).toLocaleDateString()}
+                      </span>
+                      <h4 className="font-black text-slate-900 text-base line-clamp-1 group-hover:text-[var(--brand)] transition-colors">
+                        {post.title}
+                      </h4>
                       <p className="text-xs text-slate-500 font-medium line-clamp-1">{post.content}</p>
                     </div>
                     <div className="flex items-center gap-3 justify-end">
-                      <Link href="/community" className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-500 text-[11px] font-black text-slate-600 rounded-lg transition-all">보기</Link>
-                      <button onClick={() => handleDeletePost(post.id)} className="px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 text-[11px] font-black rounded-lg">삭제</button>
+                      <Link
+                        href="/community"
+                        className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-500 text-[11px] font-black text-slate-600 rounded-lg transition-all"
+                      >
+                        보기
+                      </Link>
+                      <button
+                        onClick={() => handleDeletePost(post.id)}
+                        className="px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 text-[11px] font-black rounded-lg"
+                      >
+                        삭제
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -304,7 +364,6 @@ export default function MyPage() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

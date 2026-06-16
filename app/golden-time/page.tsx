@@ -13,11 +13,15 @@ import {
   isGoldenDeadlinePassed,
   type GoldenPropertyType,
 } from '@/lib/golden-time-schedule';
+import { parseInterestTypes } from '@/lib/profile-interests';
 
 type SavedReminder = {
   phone: string;
+  contractEndDate?: string;
   slots: { remindOn: string; label: string; sentAt?: string | null }[];
 };
+
+type ReminderMap = Partial<Record<GoldenPropertyType, SavedReminder>>;
 
 type TemplateDraftItem = {
   slot: 1 | 2 | 3;
@@ -49,14 +53,51 @@ export default function GoldenTimePage() {
   const [expiryDate, setExpiryDate] = useState<string>('');
 
   const [user, setUser] = useState<{ id: string } | null>(null);
-  const [phone, setPhone] = useState('');
+  const [profilePhone, setProfilePhone] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
-  const [saved, setSaved] = useState<SavedReminder | null>(null);
+  const [savedByType, setSavedByType] = useState<ReminderMap>({});
   const [loadingReminder, setLoadingReminder] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [alimtalk, setAlimtalk] = useState<AlimtalkConfig | null>(null);
+  const [contracts, setContracts] = useState<{ housing: string | null; commercial: string | null }>({
+    housing: null,
+    commercial: null,
+  });
+  const [interestTypes, setInterestTypes] = useState<GoldenPropertyType[]>([]);
+
+  const showHousingTab = interestTypes.includes('주택');
+  const showCommercialTab = interestTypes.includes('상가');
+  const hasInterestSelection = interestTypes.length > 0;
 
   const propertyType: GoldenPropertyType = activeTab === 'residential' ? '주택' : '상가';
+  const saved = savedByType[propertyType] ?? null;
+
+  const resolveExpiryForTab = useCallback(
+    (
+      tab: 'residential' | 'commercial',
+      map: ReminderMap,
+      contractDates: { housing: string | null; commercial: string | null }
+    ) => {
+      const pt: GoldenPropertyType = tab === 'residential' ? '주택' : '상가';
+      if (map[pt]?.contractEndDate) return map[pt]!.contractEndDate!;
+      if (tab === 'residential' && contractDates.housing) return contractDates.housing;
+      if (tab === 'commercial' && contractDates.commercial) return contractDates.commercial;
+      return '';
+    },
+    []
+  );
+
+  const switchTab = (tab: 'residential' | 'commercial') => {
+    setActiveTab(tab);
+    setExpiryDate(resolveExpiryForTab(tab, savedByType, contracts));
+    setConsent(false);
+  };
+
+  useEffect(() => {
+    if (showCommercialTab && !showHousingTab) setActiveTab('commercial');
+    if (showHousingTab && !showCommercialTab) setActiveTab('residential');
+  }, [showHousingTab, showCommercialTab]);
+
   const accent = activeTab === 'residential' ? 'blue' : 'orange';
 
   const calculatedDates = useMemo(() => {
@@ -79,27 +120,53 @@ export default function GoldenTimePage() {
     try {
       const res = await fetch('/api/golden-time/reminders', { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && data.reminder) {
-        setSaved({
-          phone: data.reminder.phone,
-          slots: data.reminder.slots ?? [],
-        });
-        setExpiryDate(data.reminder.contractEndDate);
-        setActiveTab(data.reminder.propertyType === '상가' ? 'commercial' : 'residential');
-        setPhone(data.reminder.phone);
-      } else {
-        setSaved(null);
-        if (data.profile?.contractEndDate) {
-          setExpiryDate(data.profile.contractEndDate);
-          setActiveTab(data.profile.propertyType === '상가' ? 'commercial' : 'residential');
+      if (data.success) {
+        const contractDates = {
+          housing: data.contracts?.housing ?? null,
+          commercial: data.contracts?.commercial ?? null,
+        };
+        setProfilePhone(data.profilePhone ?? null);
+        setContracts(contractDates);
+        const interests = parseInterestTypes(data.interestTypes);
+        setInterestTypes(interests);
+
+        const map: ReminderMap = {};
+        for (const r of data.reminders ?? []) {
+          const pt = r.propertyType as GoldenPropertyType;
+          map[pt] = {
+            phone: r.phone,
+            contractEndDate: r.contractEndDate,
+            slots: r.slots ?? [],
+          };
         }
+        setSavedByType(map);
+
+        const initialTab: 'residential' | 'commercial' = interests.includes('상가')
+          ? interests.includes('주택')
+            ? map['주택'] || contractDates.housing
+              ? 'residential'
+              : map['상가'] || contractDates.commercial
+                ? 'commercial'
+                : 'residential'
+            : 'commercial'
+          : interests.includes('주택')
+            ? 'residential'
+            : map['주택'] || contractDates.housing
+              ? 'residential'
+              : map['상가'] || contractDates.commercial
+                ? 'commercial'
+                : 'residential';
+        setActiveTab(initialTab);
+        setExpiryDate(resolveExpiryForTab(initialTab, map, contractDates));
+      } else {
+        setSavedByType({});
       }
     } catch {
-      setSaved(null);
+      setSavedByType({});
     } finally {
       setLoadingReminder(false);
     }
-  }, []);
+  }, [resolveExpiryForTab]);
 
   useEffect(() => {
     fetch('/api/golden-time/config', { cache: 'no-store' })
@@ -192,7 +259,11 @@ export default function GoldenTimePage() {
   const registerReminder = async () => {
     if (!expiryDate) return alert('계약 만기일을 먼저 입력해 주세요.');
     if (!user) return alert('알림 예약은 로그인 후 이용할 수 있습니다.');
-    if (!phone.trim()) return alert('휴대폰 번호를 입력해 주세요.');
+    if (!profilePhone) {
+      alert('알림톡을 받으려면 마이페이지에서 본인 휴대폰 번호를 먼저 등록해 주세요.');
+      window.location.href = '/mypage#notification-phone';
+      return;
+    }
     if (!consent) return alert('개인정보·알림 발송 동의가 필요합니다.');
 
     setSubmitting(true);
@@ -203,26 +274,34 @@ export default function GoldenTimePage() {
         body: JSON.stringify({
           contractEndDate: expiryDate,
           propertyType,
-          phone,
           consent: true,
         }),
       });
       const data = await res.json();
       if (!data.success) {
+        if (data.code === 'PHONE_REQUIRED') {
+          alert(data.error);
+          window.location.href = '/mypage#notification-phone';
+          return;
+        }
         alert(data.error || '예약에 실패했습니다.');
         return;
       }
-      setSaved({
-        phone: data.reminder.phone,
-        slots: data.schedule.map((s: { remindOn: string; label: string }) => ({
-          remindOn: s.remindOn,
-          label: s.label,
-        })),
-      });
+      setSavedByType((prev) => ({
+        ...prev,
+        [propertyType]: {
+          phone: data.reminder.phone,
+          contractEndDate: expiryDate,
+          slots: data.schedule.map((s: { remindOn: string; label: string }) => ({
+            remindOn: s.remindOn,
+            label: s.label,
+          })),
+        },
+      }));
       alert(
         data.alimtalk?.sendEnabled
-          ? `예약 완료! ${data.schedule.length}회 카카오 알림톡이 해당 날짜 오전 9시에 발송됩니다.`
-          : `예약 완료! ${data.schedule.length}회 일정이 저장되었습니다.`
+          ? `${propertyType} 예약 완료! ${data.schedule.length}회 카카오 알림톡이 해당 날짜 오전 9시에 발송됩니다.`
+          : `${propertyType} 예약 완료! ${data.schedule.length}회 일정이 저장되었습니다.`
       );
     } catch {
       alert('네트워크 오류로 예약하지 못했습니다. 잠시 후 다시 시도해 주세요.');
@@ -232,14 +311,20 @@ export default function GoldenTimePage() {
   };
 
   const cancelReminder = async () => {
-    if (!confirm('골든타임 알림 예약을 취소할까요?')) return;
-    const res = await fetch('/api/golden-time/reminders', { method: 'DELETE' });
+    if (!confirm(`${propertyType} 골든타임 알림 예약을 취소할까요?`)) return;
+    const res = await fetch(
+      `/api/golden-time/reminders?propertyType=${encodeURIComponent(propertyType)}`,
+      { method: 'DELETE' }
+    );
     const data = await res.json();
     if (data.success) {
-      setSaved(null);
-      setPhone('');
+      setSavedByType((prev) => {
+        const next = { ...prev };
+        delete next[propertyType];
+        return next;
+      });
       setConsent(false);
-      alert('알림 예약이 취소되었습니다.');
+      alert(`${propertyType} 알림 예약이 취소되었습니다.`);
     } else {
       alert(data.error || '취소에 실패했습니다.');
     }
@@ -247,7 +332,7 @@ export default function GoldenTimePage() {
 
   const shareToKakao = async () => {
     if (!expiryDate) return alert('만기일을 입력해 주세요.');
-    const normalized = phone.replace(/\D/g, '') || saved?.phone || '01000000000';
+    const normalized = profilePhone?.replace(/\D/g, '') || saved?.phone || '01000000000';
     const text = buildKakaoShareText(expiryDate, propertyType, normalized);
     try {
       await navigator.clipboard.writeText(text);
@@ -307,36 +392,66 @@ export default function GoldenTimePage() {
         </div>
 
         {/* 유형 선택 */}
+        {user && !hasInterestSelection && (
+          <div className="rounded-2xl p-4 bg-amber-50 border border-amber-200 space-y-2">
+            <p className="text-xs font-bold text-amber-900 leading-relaxed">
+              골든타임 알림을 받으려면 먼저 관심 분야(주택·상가)를 선택해 주세요.
+            </p>
+            <Link href="/mypage" className="inline-block text-xs font-black underline text-amber-800">
+              마이페이지에서 관심 분야 설정하기 →
+            </Link>
+          </div>
+        )}
+
+        {hasInterestSelection && showHousingTab && showCommercialTab && (
         <div className="flex bg-white p-1.5 rounded-[2rem] shadow-sm border border-gray-100">
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('residential');
-              if (!saved) setExpiryDate('');
-            }}
-            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all ${
+            onClick={() => switchTab('residential')}
+            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all relative ${
               activeTab === 'residential' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400'
             }`}
           >
             <span className="text-xl">🏠</span>
             <span className="text-[11px] font-black">주택 (만기 2개월 전)</span>
+            {savedByType['주택'] && (
+              <span className="absolute top-2 right-3 text-[9px] font-black bg-white/90 text-blue-600 px-1.5 py-0.5 rounded-full">
+                예약됨
+              </span>
+            )}
           </button>
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('commercial');
-              if (!saved) setExpiryDate('');
-            }}
-            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all ${
+            onClick={() => switchTab('commercial')}
+            className={`flex-1 py-3.5 rounded-[1.75rem] flex flex-col items-center gap-1 transition-all relative ${
               activeTab === 'commercial' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400'
             }`}
           >
             <span className="text-xl">🏪</span>
             <span className="text-[11px] font-black">상가 (만기 1개월 전)</span>
+            {savedByType['상가'] && (
+              <span className="absolute top-2 right-3 text-[9px] font-black bg-white/90 text-orange-600 px-1.5 py-0.5 rounded-full">
+                예약됨
+              </span>
+            )}
           </button>
         </div>
+        )}
+
+        {hasInterestSelection && showHousingTab && !showCommercialTab && (
+          <div className="bg-blue-600 text-white rounded-2xl py-4 text-center font-black text-sm">
+            🏠 주택 임대차 골든타임
+          </div>
+        )}
+
+        {hasInterestSelection && showCommercialTab && !showHousingTab && (
+          <div className="bg-orange-500 text-white rounded-2xl py-4 text-center font-black text-sm">
+            🏪 상가 임대차 골든타임
+          </div>
+        )}
 
         {/* 만기일 + 카톡 예약 (핵심) */}
+        {(!user || hasInterestSelection) && (
         <section className="bg-white rounded-[2rem] shadow-lg border-2 border-slate-900 overflow-hidden">
           <div className={`px-6 py-4 ${accent === 'blue' ? 'bg-blue-600' : 'bg-orange-500'}`}>
             <h2 className="text-white font-black text-lg flex items-center gap-2">
@@ -435,7 +550,7 @@ export default function GoldenTimePage() {
             ) : saved ? (
               <div className="space-y-4 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
                 <p className="font-black text-emerald-900 text-sm">
-                  ✅ 알림 예약 완료 · {saved.phone}
+                  ✅ {propertyType} 알림 예약 완료 · {saved.phone}
                 </p>
                 <p className="text-xs text-emerald-800/80 font-medium">
                   {alimtalk?.sendEnabled
@@ -479,16 +594,27 @@ export default function GoldenTimePage() {
                       이 필요합니다
                     </p>
                   )}
-                  {user && (
+                  {user && !profilePhone && (
+                    <div className="rounded-xl p-4 space-y-2 bg-amber-50 border border-amber-200">
+                      <p className="text-xs font-bold leading-relaxed text-amber-900">
+                        알림톡을 받으려면 마이페이지에서 본인 휴대폰 번호를 먼저 등록해 주세요.
+                      </p>
+                      <Link
+                        href="/mypage#notification-phone"
+                        className="inline-block text-xs font-black underline text-amber-800"
+                      >
+                        마이페이지에서 번호 등록하기 →
+                      </Link>
+                    </div>
+                  )}
+                  {user && profilePhone && (
                     <>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        placeholder="휴대폰 번호 (01012345678)"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full p-4 bg-gray-50 rounded-xl font-bold text-base border border-gray-200"
-                      />
+                      <p className="text-xs font-bold text-gray-600">
+                        수신 번호: <span className="text-gray-900">{profilePhone}</span>
+                        <span className="block text-[10px] mt-0.5 font-medium text-gray-400">
+                          (마이페이지에서 변경)
+                        </span>
+                      </p>
                       <label className="flex items-start gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -497,7 +623,7 @@ export default function GoldenTimePage() {
                           className="mt-1"
                         />
                         <span className="text-xs font-medium text-gray-600 leading-relaxed">
-                          휴대폰 번호 수집·보관 및 골든타임 카카오 알림톡 발송에 동의합니다.
+                          등록된 휴대폰 번호로 {propertyType} 골든타임 카카오 알림톡 발송에 동의합니다.
                         </span>
                       </label>
                       <button
@@ -506,7 +632,7 @@ export default function GoldenTimePage() {
                         onClick={() => void registerReminder()}
                         className={`w-full py-4 rounded-2xl font-black text-lg shadow-lg transition-all disabled:opacity-50 ${btnPrimary}`}
                       >
-                        {submitting ? '저장 중...' : '🔔 카카오 알림톡 예약하기'}
+                        {submitting ? '저장 중...' : `🔔 ${propertyType} 카카오 알림톡 예약하기`}
                       </button>
                       <button
                         type="button"
@@ -528,6 +654,7 @@ export default function GoldenTimePage() {
             )}
           </div>
         </section>
+        )}
 
         {/* 참고: 전체 일정 */}
         <section className="space-y-4">
