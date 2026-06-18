@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { signInWithOAuth } from '@/lib/oauth-login';
+import { resetStuckBodyScroll } from '@/lib/reset-stuck-ui';
+import { GoogleLoginButton, KakaoLoginButton } from '@/app/components/social-login/SocialLoginButtons';
 
 type LoginModalProps = {
   open: boolean;
@@ -10,12 +13,35 @@ type LoginModalProps = {
 };
 
 export default function LoginModal({ open, onClose, variant = 'refresh' }: LoginModalProps) {
-  const [loading, setLoading] = useState<null | 'google' | 'kakao'>(null);
+  const [mounted, setMounted] = useState(false);
 
-  if (!open) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      resetStuckBodyScroll();
+      return;
+    }
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      resetStuckBodyScroll();
+    };
+  }, [open]);
+
+  if (!open || !mounted) return null;
+
+  const dismiss = () => onClose();
 
   const handleLogin = async (provider: 'google' | 'kakao') => {
-    setLoading(provider);
+    flushSync(() => onClose());
+    resetStuckBodyScroll();
+
     try {
       await signInWithOAuth(provider);
     } catch (e) {
@@ -23,21 +49,20 @@ export default function LoginModal({ open, onClose, variant = 'refresh' }: Login
       alert(
         provider === 'kakao'
           ? `카카오 로그인 실패: ${message}\n\nSupabase 대시보드에서 Kakao 제공자를 켜고 REST API 키를 등록했는지 확인해 주세요.`
-          : `구글 로그인 실패: ${message}`
+          : `Google 로그인 실패: ${message}`
       );
-      setLoading(null);
     }
   };
 
   const isClassic = variant === 'classic';
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[130] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-modal-title"
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
         className={`w-full max-w-sm space-y-6 border shadow-2xl ${
@@ -62,40 +87,20 @@ export default function LoginModal({ open, onClose, variant = 'refresh' }: Login
           </p>
         </div>
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            disabled={loading !== null}
-            onClick={() => void handleLogin('google')}
-            className="flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 text-sm font-black text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-muted)] disabled:opacity-50"
-          >
-            <span className="text-lg" aria-hidden>
-              G
-            </span>
-            {loading === 'google' ? '연결 중…' : 'Google로 로그인'}
-          </button>
-
-          <button
-            type="button"
-            disabled={loading !== null}
-            onClick={() => void handleLogin('kakao')}
-            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#FEE500] px-4 py-4 text-sm font-black text-[#191919] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <span className="text-base" aria-hidden>
-              💬
-            </span>
-            {loading === 'kakao' ? '연결 중…' : '카카오로 로그인'}
-          </button>
+        <div className="space-y-3" role="group" aria-label="소셜 로그인">
+          <KakaoLoginButton onClick={() => void handleLogin('kakao')} />
+          <GoogleLoginButton onClick={() => void handleLogin('google')} />
         </div>
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={dismiss}
           className="w-full text-center text-sm font-bold text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
         >
           닫기
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

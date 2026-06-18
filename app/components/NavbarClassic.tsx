@@ -21,6 +21,7 @@ import ClassicBrandLogo from './ClassicBrandLogo';
 import SiteSearch from './SiteSearch';
 import LoginModal from './LoginModal';
 import ProfileOnboardingModal from './ProfileOnboardingModal';
+import { PAGE_RECOVERY_EVENT, resetStuckBodyScroll } from '@/lib/reset-stuck-ui';
 import {
   isProfileOnboardingComplete,
   parseInterestTypes,
@@ -69,7 +70,7 @@ export default function Navbar() {
         .from('profiles')
         .select('nickname, gender, interest_types')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       if (profile) {
         const dbNickname = profile.nickname?.trim() || '';
         setNickname(dbNickname);
@@ -92,7 +93,20 @@ export default function Navbar() {
 
   useEffect(() => {
     setMenuOpen(false);
+    setShowLoginModal(false);
+    resetStuckBodyScroll();
   }, [pathname]);
+
+  useEffect(() => {
+    const recover = () => {
+      setShowLoginModal(false);
+      setShowModal(false);
+      setMenuOpen(false);
+      resetStuckBodyScroll();
+    };
+    window.addEventListener(PAGE_RECOVERY_EVENT, recover);
+    return () => window.removeEventListener(PAGE_RECOVERY_EVENT, recover);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return;

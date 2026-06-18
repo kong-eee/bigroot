@@ -4,6 +4,7 @@ import './globals.css';
 import NavbarRouter from './components/NavbarRouter';
 import { ThemeProvider } from '@/lib/theme-context';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import PageInteractionRecovery from './components/PageInteractionRecovery';
 
 const noto = Noto_Sans_KR({
   subsets: ['latin'],
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="ko" data-theme="refresh" suppressHydrationWarning>
       <body className={`${noto.variable} antialiased`}>
         <ThemeProvider>
+          <PageInteractionRecovery />
           <NavbarRouter />
           {children}
           <ThemeSwitcher />
