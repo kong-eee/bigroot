@@ -1,4 +1,11 @@
+import { getSiteOrigin } from '@/lib/site-url';
+
 export type GoldenPropertyType = '주택' | '상가';
+
+function goldenTimePublicUrl(): string {
+  const origin = getSiteOrigin() || 'https://bigroot.co.kr';
+  return `${origin}/golden-time`;
+}
 
 export type GoldenReminderSlot = {
   slot: 1 | 2 | 3;
@@ -119,7 +126,7 @@ export function buildKakaoShareText(
     ...lines,
     '',
     `등록 번호: ${phone}`,
-    'https://bigroot.vercel.app/golden-time',
+    goldenTimePublicUrl(),
   ].join('\n');
 }
 

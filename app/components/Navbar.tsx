@@ -315,6 +315,16 @@ export default function Navbar() {
         <div className="mx-auto flex h-[var(--nav-height)] max-w-7xl items-center gap-2 px-4 sm:px-6">
           <BrandLogo size="sm" className="shrink-0 min-w-0" />
 
+          <button
+            type="button"
+            className="xl:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)]"
+            aria-label="메뉴"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {menuOpen ? '✕' : '☰'}
+          </button>
+
           <div className="hidden md:flex xl:hidden flex-1 min-w-0 max-w-md mx-1 justify-center">
             <SiteSearch variant="full" />
           </div>
@@ -351,7 +361,9 @@ export default function Navbar() {
             </div>
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0 ml-auto">
+          <div className="flex-1 xl:flex-none" />
+
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="md:hidden">
               <SiteSearch variant="icon" />
             </div>
@@ -413,7 +425,7 @@ export default function Navbar() {
                 {nickname ? (
                   <Link
                     href="/mypage"
-                    className="hidden sm:inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-2 text-sm font-bold"
+                    className="hidden sm:inline-flex items-center rounded-xl border border-[var(--border)] bg-[var(--bg-muted)] px-3 py-2 text-sm font-bold max-w-[7rem] truncate"
                   >
                     {nickname}
                   </Link>
@@ -429,7 +441,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => supabase.auth.signOut()}
-                  className="hidden sm:inline text-xs font-bold text-[var(--text-muted)]"
+                  className="hidden xl:inline text-xs font-bold text-[var(--text-muted)]"
                 >
                   로그아웃
                 </button>
@@ -443,15 +455,6 @@ export default function Navbar() {
                 로그인
               </button>
             )}
-
-            <button
-              type="button"
-              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)]"
-              aria-label="메뉴"
-              onClick={() => setMenuOpen((o) => !o)}
-            >
-              {menuOpen ? '✕' : '☰'}
-            </button>
           </div>
         </div>
 

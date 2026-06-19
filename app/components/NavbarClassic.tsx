@@ -319,6 +319,16 @@ export default function Navbar() {
             className="shrink-0 min-w-0 [&_img]:h-9 [&_img]:w-9 sm:[&_img]:h-12 sm:[&_img]:w-12"
           />
 
+          <button
+            type="button"
+            className="xl:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-lg"
+            aria-label="메뉴"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {menuOpen ? '✕' : '☰'}
+          </button>
+
           <div className="hidden md:flex xl:hidden flex-1 min-w-0 max-w-md mx-1 justify-center">
             <SiteSearch variant="full" />
           </div>
@@ -351,7 +361,9 @@ export default function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+          <div className="flex-1 xl:flex-none" />
+
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="md:hidden">
               <SiteSearch variant="icon" />
             </div>
@@ -416,23 +428,23 @@ export default function Navbar() {
                 {nickname ? (
                   <Link
                     href="/mypage"
-                    className="text-sm font-black text-[var(--text-primary)] bg-[var(--bg-muted)] px-4 py-2.5 rounded-2xl border border-[var(--border)] hover:border-[var(--brand)] transition-all"
+                    className="hidden sm:inline-flex text-sm font-black text-[var(--text-primary)] bg-[var(--bg-muted)] px-3 py-2 rounded-2xl border border-[var(--border)] hover:border-[var(--brand)] transition-all max-w-[7rem] truncate"
                   >
-                    {nickname} 님
+                    {nickname}
                   </Link>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowModal(true)}
-                    className="text-xs font-black text-[var(--brand)] bg-[var(--brand-soft)] px-4 py-2.5 rounded-2xl border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all"
+                    className="hidden sm:inline text-xs font-black text-[var(--brand)] bg-[var(--brand-soft)] px-3 py-2 rounded-2xl border border-[var(--border)] hover:bg-[var(--bg-muted)] transition-all"
                   >
-                    🌱 닉네임 설정하기
+                    🌱 닉네임
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => supabase.auth.signOut()}
-                  className="text-sm font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                  className="hidden xl:inline text-sm font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
                 >
                   로그아웃
                 </button>
@@ -441,20 +453,11 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setShowLoginModal(true)}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-[var(--text-primary)] text-white rounded-2xl text-sm font-black hover:bg-[var(--brand)] hover:text-[var(--brand-on,#fff)] transition-all"
+                className="px-3 sm:px-6 py-2 sm:py-3 bg-[var(--text-primary)] text-white rounded-2xl text-sm font-black hover:bg-[var(--brand)] hover:text-[var(--brand-on,#fff)] transition-all"
               >
                 로그인
               </button>
             )}
-
-            <button
-              type="button"
-              className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-lg"
-              aria-label="메뉴"
-              onClick={() => setMenuOpen((o) => !o)}
-            >
-              {menuOpen ? '✕' : '☰'}
-            </button>
           </div>
         </div>
 
@@ -499,13 +502,21 @@ export default function Navbar() {
                 </Link>
               )
             )}
-            {user && nickname && (
-              <Link
-                href="/mypage"
-                className="block py-3 px-4 rounded-xl text-[15px] font-bold text-[var(--text-primary)] border-t border-[var(--border)] mt-2"
-              >
-                {nickname} · 마이페이지
-              </Link>
+            {user && (
+              <div className="pt-3 mt-3 border-t border-[var(--border)] space-y-2 px-4">
+                {nickname && (
+                  <Link href="/mypage" className="block font-bold text-[var(--text-primary)]">
+                    {nickname} · 마이페이지
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => supabase.auth.signOut()}
+                  className="text-sm font-bold text-[var(--text-muted)]"
+                >
+                  로그아웃
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -4,8 +4,11 @@ import {
   type GoldenPropertyType,
 } from '@/lib/golden-time-schedule';
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://bigroot.vercel.app/golden-time';
+const SITE_URL = (() => {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '');
+  if (base) return `${base.startsWith('http') ? base : `https://${base}`}/golden-time`;
+  return 'https://bigroot.co.kr/golden-time';
+})();
 
 /** Solapi·카카오 템플릿 변수 (목적별 템플릿 공통) */
 export const ALIMTALK_VARIABLE_KEYS = [
@@ -25,7 +28,7 @@ export const ALIMTALK_VARIABLE_EXAMPLES: Record<(typeof ALIMTALK_VARIABLE_KEYS)[
     '#{기한일}': '2026년 2월 15일',
     '#{통보시작}': '2026년 2월 15일',
     '#{통보마감}': '2026년 6월 15일',
-    '#{링크}': 'bigroot.vercel.app/golden-time',
+    '#{링크}': 'bigroot.co.kr/golden-time',
   };
 
 const HEADER = '[빅루트 임대차 갱신·통보 기한 알림]';

@@ -26,6 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: '계약',
     links: [
       { href: '/contract', label: '계약전 체크', highlight: true },
+      { href: '/property-visit', label: '임장 체크', highlight: true },
       { href: '/safety-check', label: '안전진단', highlight: true },
       { href: '/rent-increase', label: '임대료진단' },
     ],

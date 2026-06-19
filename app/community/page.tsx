@@ -209,12 +209,16 @@ function CommunityContent() {
     e: React.MouseEvent,
     table: string,
     id: string,
-    hasComments: boolean = false
+    hasComments: boolean = false,
+    asAdmin: boolean = false
   ) => {
     e.stopPropagation();
-    if (table === 'posts' && hasComments)
+    if (table === 'posts' && hasComments && !asAdmin)
       return alert('답글이 달린 게시글은 삭제할 수 없습니다. 🔒');
-    if (!confirm('정말로 삭제하시겠습니까?')) return;
+    const msg = asAdmin && table === 'posts' && hasComments
+      ? '운영자 권한으로 답글이 포함된 게시글을 삭제합니다. 계속할까요?'
+      : '정말로 삭제하시겠습니까?';
+    if (!confirm(msg)) return;
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (!error) {
       alert('삭제되었습니다.');
@@ -229,6 +233,7 @@ function CommunityContent() {
   };
 
   const isAllowed = user && profile?.nickname;
+  const isAdmin = profile?.is_admin === true;
 
   return (
     <div className="page-main flex flex-col items-center p-4 sm:p-6">
@@ -381,14 +386,20 @@ function CommunityContent() {
                       </span>
                     </div>
 
-                    {activePostId === post.id && user?.id === post.author_id && (
+                    {activePostId === post.id && (user?.id === post.author_id || isAdmin) && (
                       <button
                         onClick={(e) =>
-                          deleteItem(e, 'posts', post.id, post.comments?.length > 0)
+                          deleteItem(
+                            e,
+                            'posts',
+                            post.id,
+                            post.comments?.length > 0,
+                            isAdmin
+                          )
                         }
                         className="text-[10px] font-black text-red-400 hover:text-red-600 pl-1"
                       >
-                        삭제
+                        {isAdmin && user?.id !== post.author_id ? '운영 삭제' : '삭제'}
                       </button>
                     )}
                   </div>
@@ -444,12 +455,12 @@ function CommunityContent() {
                               </span>
                               <p className="text-sm font-bold text-slate-700">{comment.content}</p>
                             </div>
-                            {user?.id === comment.author_id && (
+                            {(user?.id === comment.author_id || isAdmin) && (
                               <button
-                                onClick={(e) => deleteItem(e, 'comments', comment.id)}
+                                onClick={(e) => deleteItem(e, 'comments', comment.id, false, isAdmin)}
                                 className="text-[9px] font-black text-red-400 hover:text-red-600"
                               >
-                                삭제
+                                {isAdmin && user?.id !== comment.author_id ? '운영 삭제' : '삭제'}
                               </button>
                             )}
                           </div>

@@ -2,11 +2,13 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { syncProfileToAuth } from '@/lib/sync-profile-to-auth';
+import { resolveRedirectOrigin } from '@/lib/site-url';
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/';
+  const redirectOrigin = resolveRedirectOrigin(request.url);
 
   if (code) {
     const cookieStore = await cookies();
@@ -54,9 +56,9 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${redirectOrigin}${next}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}`);
+  return NextResponse.redirect(`${redirectOrigin}`);
 }

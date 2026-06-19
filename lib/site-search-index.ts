@@ -13,6 +13,7 @@ export type SiteSearchEntry = {
 const PAGE_LABELS: Record<string, string> = {
   '/': '홈',
   '/contract': '계약전 체크',
+  '/property-visit': '임장 체크',
   '/safety-check': '안전진단',
   '/rent-increase': '임대료진단',
   '/lease-timeline': '내 타임라인',
@@ -68,6 +69,7 @@ const STATIC_ENTRIES: SiteSearchEntry[] = [
 
   entry('timeline-1', '/lease-timeline', '내 타임라인', '계약 시작·만기·갱신 통보·퇴거 골든타임 일정을 한눈에 봅니다.', ['만기', '갱신']),
   entry('checklist-1', '/move-in-checklist', '입주 체크', '입주 전·당일·이후 단계별 체크리스트로 증거를 남기세요.', ['입주', '촬영']),
+  entry('visit-1', '/property-visit', '임장 체크', '주택·상가 임장 시 주소, 금액, 향, 체크리스트, 사진을 기록하고 매물을 비교하세요.', ['임장', '매물', '비교', '체크리스트']),
   entry('renewal-1', '/renewal-check', '갱신권 진단', '계약갱신요구권 행사 가능 여부와 통보 기한을 진단합니다.', ['2+2', '갱신권']),
 
   entry('rights-r1', '/rights-guide', '주택 · 갱신권', '계약갱신요구권으로 1회 2년 연장을 요구할 수 있습니다. 정당한 사유 없이 거절 불가.', ['2+2년']),
