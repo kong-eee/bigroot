@@ -12,15 +12,14 @@ type NavDropdownProps = {
   label: string;
   links: NavLink[];
   pathname: string;
-  /** refresh | classic */
-  variant?: 'refresh' | 'classic';
+  variant?: 'classic';
 };
 
 export default function NavDropdown({
   label,
   links,
   pathname,
-  variant = 'refresh',
+  variant = 'classic',
 }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
   const isActive = links.some((l) => pathname === l.href);

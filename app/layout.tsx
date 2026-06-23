@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
-import NavbarRouter from './components/NavbarRouter';
-import { ThemeProvider } from '@/lib/theme-context';
-import ThemeSwitcher from './components/ThemeSwitcher';
+import Navbar from './components/NavbarClassic';
 import PageInteractionRecovery from './components/PageInteractionRecovery';
 
 const noto = Noto_Sans_KR({
@@ -25,14 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" data-theme="refresh" suppressHydrationWarning>
+    <html lang="ko" data-theme="classic" suppressHydrationWarning>
       <body className={`${noto.variable} antialiased`}>
-        <ThemeProvider>
-          <PageInteractionRecovery />
-          <NavbarRouter />
-          {children}
-          <ThemeSwitcher />
-        </ThemeProvider>
+        <PageInteractionRecovery />
+        <Navbar />
+        {children}
       </body>
     </html>
   );

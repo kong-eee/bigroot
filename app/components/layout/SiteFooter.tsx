@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BrandLogo from '../BrandLogo';
+import ClassicBrandLogo from '../ClassicBrandLogo';
 
 const LINKS = {
   service: [
@@ -19,7 +19,7 @@ export default function SiteFooter() {
     <footer className="mt-4 border-t border-[var(--border)] bg-[var(--text-primary)] text-white">
       <div className="page-container page-container-wide py-12 sm:py-14 flex flex-col lg:flex-row justify-between gap-10">
         <div className="space-y-4 max-w-sm">
-          <BrandLogo size="md" href={null} className="[&_img]:brightness-110" />
+          <ClassicBrandLogo size="md" href={null} onDark />
           <p className="text-sm font-medium text-white/65 leading-relaxed">
             세입자의 보증금과 권리를 데이터·법률·커뮤니티로 연결합니다. 뿌리처럼 단단한 권리,
             길처럼 이어지는 정보.

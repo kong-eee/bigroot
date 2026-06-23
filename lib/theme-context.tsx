@@ -1,45 +1,27 @@
 'use client';
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import { UI_THEME_DEFAULT, UI_THEME_KEY, isUiTheme, type UiTheme } from '@/lib/ui-theme';
+import { createContext, useContext, useEffect, useMemo } from 'react';
+import { UI_THEME_KEY, type UiTheme } from '@/lib/ui-theme';
 
 type ThemeContextValue = {
   theme: UiTheme;
-  setTheme: (theme: UiTheme) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/** @deprecated ThemeProvider 제거됨. layout data-theme="classic" 사용 */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<UiTheme>(UI_THEME_DEFAULT);
-
   useEffect(() => {
-    const stored = localStorage.getItem(UI_THEME_KEY);
-    const initial = isUiTheme(stored) ? stored : UI_THEME_DEFAULT;
-    setThemeState(initial);
-    document.documentElement.setAttribute('data-theme', initial);
+    document.documentElement.setAttribute('data-theme', 'classic');
+    localStorage.setItem(UI_THEME_KEY, 'classic');
   }, []);
 
-  const setTheme = useCallback((next: UiTheme) => {
-    setThemeState(next);
-    localStorage.setItem(UI_THEME_KEY, next);
-    document.documentElement.setAttribute('data-theme', next);
-  }, []);
-
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
-
+  const value = useMemo(() => ({ theme: 'classic' as const }), []);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useUiTheme() {
+export function useUiTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useUiTheme must be used within ThemeProvider');
+  if (!ctx) return { theme: 'classic' };
   return ctx;
 }

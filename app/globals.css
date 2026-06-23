@@ -1,46 +1,7 @@
 @import "tailwindcss";
 
-/* ─── 기본: 새 UI (refresh) — BR 로고 톤: 숲녹 #3E6B3F + 뿌리갈색 #6D4C3D ─── */
+/* ─── 운영 UI: classic (파란 톤). refresh 토큰은 theme-backup/refresh 참고 ─── */
 :root,
-[data-theme='refresh'] {
-  --bg-page: #f7f4ee;
-  --bg-surface: #fffcf7;
-  --bg-muted: #ede8df;
-  --bg-elevated: #fffdf9;
-  --text-primary: #2c241c;
-  --text-secondary: #5a4a3d;
-  --text-muted: #8a7a6b;
-  --brand: #3e6b3f;
-  --brand-hover: #335a34;
-  --brand-soft: #e4efe4;
-  --brand-on: #ffffff;
-  --accent: #6d4c3d;
-  --accent-hover: #5c3f32;
-  --accent-soft: #f0e8e2;
-  --border: #ddd5c8;
-  --border-strong: #c9bfb0;
-  --shadow: 0 4px 24px rgba(44, 36, 28, 0.06);
-  --shadow-lg: 0 20px 50px rgba(44, 36, 28, 0.1);
-  --shadow-brand: 0 12px 32px rgba(62, 107, 63, 0.22);
-  --nav-height: 4rem;
-  --radius: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --font-sans: var(--font-noto), 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    sans-serif;
-}
-
-[data-theme='refresh'] .ui-panel-dark {
-  background: linear-gradient(155deg, #2f3d2f 0%, #3d2e26 55%, #2c241c 100%);
-  color: #fff;
-}
-
-[data-theme='refresh'] ::selection {
-  background: var(--brand-soft);
-  color: var(--brand-on);
-}
-
-/* ─── 이전 UI (classic) — 파란색 톤 (레이아웃·디자인 동일) ─── */
 [data-theme='classic'] {
   --bg-page: #f7f3ec;
   --bg-surface: #ffffff;

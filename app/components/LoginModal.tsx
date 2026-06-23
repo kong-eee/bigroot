@@ -9,10 +9,10 @@ import { GoogleLoginButton, KakaoLoginButton } from '@/app/components/social-log
 type LoginModalProps = {
   open: boolean;
   onClose: () => void;
-  variant?: 'classic' | 'refresh';
+  variant?: 'classic';
 };
 
-export default function LoginModal({ open, onClose, variant = 'refresh' }: LoginModalProps) {
+export default function LoginModal({ open, onClose, variant = 'classic' }: LoginModalProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

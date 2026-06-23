@@ -5,7 +5,7 @@ import { INTEREST_OPTIONS } from '@/lib/profile-interests';
 
 type Props = {
   open: boolean;
-  variant?: 'refresh' | 'classic';
+  variant?: 'classic';
   nickname: string;
   gender: '남성' | '여성' | null;
   interestTypes: GoldenPropertyType[];
@@ -18,7 +18,7 @@ type Props = {
 
 export default function ProfileOnboardingModal({
   open,
-  variant = 'refresh',
+  variant = 'classic',
   nickname,
   gender,
   interestTypes,
