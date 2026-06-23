@@ -24,11 +24,19 @@ type FeedbackRow = {
   content: string;
   is_public: boolean;
   content_masked?: boolean;
+  has_admin_reply?: boolean;
+  reply_count?: number;
   admin_reply?: string | null;
   replied_at?: string | null;
   created_at: string;
   profiles?: { nickname: string | null } | null;
 };
+
+function rowHasAdminReply(row: FeedbackRow, replyCount: number): boolean {
+  if (row.has_admin_reply != null) return row.has_admin_reply;
+  if (replyCount > 0) return true;
+  return Boolean(row.admin_reply?.trim());
+}
 
 function FeedbackPageContent() {
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -444,7 +452,7 @@ function FeedbackPageContent() {
             </button>
           </div>
           <p className="text-xs text-slate-400 font-bold">
-            비공개 글도 제목은 목록에 보이고, 내용은 작성자·운영자만 볼 수 있어요.
+            비공개 글도 제목·답변 상태(대기/완료)는 목록에 보이고, 내용은 작성자·운영자만 볼 수 있어요.
           </p>
         </div>
 
@@ -494,6 +502,8 @@ function FeedbackPageContent() {
           <ul className="space-y-4">
             {visibleItems.map((row) => {
               const isMine = user?.id === row.author_id;
+              const replies = getRepliesForRow(row);
+              const answered = rowHasAdminReply(row, replies.length);
               return (
                 <li
                   key={row.id}
@@ -515,21 +525,43 @@ function FeedbackPageContent() {
                         비공개{isAdmin ? ' · 운영자 열람' : ''}
                       </span>
                     )}
+                    {answered ? (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                        답변 완료
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                        답변 대기
+                      </span>
+                    )}
                     <span className="text-[10px] text-slate-300 ml-auto">
                       {new Date(row.created_at).toLocaleDateString('ko-KR')}
                     </span>
                   </div>
                   <h3 className="font-black text-slate-900">{row.title}</h3>
-                  <p
-                    className={`text-sm font-bold whitespace-pre-wrap leading-relaxed ${
-                      row.content_masked
-                        ? 'text-slate-400 italic bg-slate-50 rounded-xl px-4 py-3 border border-dashed border-slate-200'
-                        : 'text-slate-600'
-                    }`}
-                  >
-                    {row.content}
-                  </p>
-                  {getRepliesForRow(row).map((reply) => {
+                  {row.content_masked ? (
+                    <div
+                      className={`rounded-xl px-4 py-3 border text-sm font-bold leading-relaxed ${
+                        answered
+                          ? 'bg-blue-50 border-blue-100 text-blue-800'
+                          : 'bg-amber-50 border-amber-100 text-amber-900'
+                      }`}
+                    >
+                      {answered
+                        ? '비공개 문의입니다. 운영자 답변이 완료되었어요. (내용·답변은 작성자와 운영자만 볼 수 있어요)'
+                        : '비공개 문의입니다. 운영자 답변을 기다리는 중이에요. (내용은 작성자와 운영자만 볼 수 있어요)'}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-bold text-slate-600 whitespace-pre-wrap leading-relaxed">
+                      {row.content}
+                    </p>
+                  )}
+                  {!row.content_masked && answered && !isAdmin && !isMine && row.is_public && (
+                    <p className="text-xs font-bold text-blue-600">
+                      운영자 답변이 등록된 문의입니다.
+                    </p>
+                  )}
+                  {replies.map((reply) => {
                     const isLegacy = reply.id.startsWith('legacy-');
                     const isEditing = editingReplyId === reply.id;
                     return (
