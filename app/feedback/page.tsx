@@ -8,6 +8,15 @@ import { FEEDBACK_MIGRATION_SQL } from '@/lib/feedback-migration-sql';
 import { notifyNavbarRefresh } from '@/lib/notifications-client';
 import PageHero from '@/app/components/layout/PageHero';
 
+type FeedbackReply = {
+  id: string;
+  feedback_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type FeedbackRow = {
   id: string;
   author_id: string;
@@ -36,7 +45,11 @@ function FeedbackPageContent() {
   const [isPublic, setIsPublic] = useState(true);
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [editDrafts, setEditDrafts] = useState<Record<string, string>>({});
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [repliesByFeedback, setRepliesByFeedback] = useState<Record<string, FeedbackReply[]>>({});
   const [replyingId, setReplyingId] = useState<string | null>(null);
+  const [savingEditId, setSavingEditId] = useState<string | null>(null);
   const [schemaReady, setSchemaReady] = useState<boolean | null>(null);
   const [sqlCopied, setSqlCopied] = useState(false);
   const searchParams = useSearchParams();
@@ -100,6 +113,29 @@ function FeedbackPageContent() {
         profiles: { nickname: nicknameById.get(row.author_id) ?? null },
       }))
     );
+
+    if (list.length > 0) {
+      const ids = list.map((r) => r.id);
+      const { data: replyRows, error: replyError } = await supabase
+        .from('feedback_replies')
+        .select('id, feedback_id, author_id, content, created_at, updated_at')
+        .in('feedback_id', ids)
+        .order('created_at', { ascending: true });
+
+      if (!replyError && replyRows) {
+        const grouped: Record<string, FeedbackReply[]> = {};
+        for (const reply of replyRows as FeedbackReply[]) {
+          if (!grouped[reply.feedback_id]) grouped[reply.feedback_id] = [];
+          grouped[reply.feedback_id].push(reply);
+        }
+        setRepliesByFeedback(grouped);
+      } else {
+        setRepliesByFeedback({});
+      }
+    } else {
+      setRepliesByFeedback({});
+    }
+
     setLoading(false);
   }, []);
 
@@ -202,7 +238,7 @@ function FeedbackPageContent() {
         if (body.needsMigration) {
           setSchemaReady(false);
           alert(
-            '답변 컬럼이 DB에 없습니다.\n\nSupabase 대시보드 → SQL Editor에서 페이지 상단 안내의 SQL을 실행한 뒤 다시 시도해 주세요.'
+            '답변 테이블이 없습니다.\n\nSupabase SQL Editor에서 supabase/migrations/20260604000000_feedback_replies.sql 을 실행한 뒤 다시 시도해 주세요.'
           );
         } else {
           alert(`답변 저장 실패: ${body.error ?? res.statusText}`);
@@ -217,13 +253,59 @@ function FeedbackPageContent() {
       });
       setSchemaReady(true);
       notifyNavbarRefresh();
-      alert('답변이 등록되었습니다. 작성자에게 알림이 전송됩니다.');
       fetchItems();
     } catch (e) {
       alert(`답변 저장 실패: ${e instanceof Error ? e.message : '네트워크 오류'}`);
     } finally {
       setReplyingId(null);
     }
+  };
+
+  const handleEditReply = async (reply: FeedbackReply) => {
+    if (!isAdmin || !user) return;
+    const text = (editDrafts[reply.id] ?? '').trim();
+    if (text.length < 2) return alert('답변을 2자 이상 입력해 주세요.');
+
+    setSavingEditId(reply.id);
+    try {
+      const res = await fetch(`/api/feedback/replies/${reply.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      });
+      const body = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !body.success) {
+        alert(`수정 실패: ${body.error ?? res.statusText}`);
+        return;
+      }
+      setEditingReplyId(null);
+      setEditDrafts((prev) => {
+        const next = { ...prev };
+        delete next[reply.id];
+        return next;
+      });
+      fetchItems();
+    } catch (e) {
+      alert(`수정 실패: ${e instanceof Error ? e.message : '네트워크 오류'}`);
+    } finally {
+      setSavingEditId(null);
+    }
+  };
+
+  const getRepliesForRow = (row: FeedbackRow): FeedbackReply[] => {
+    const fromTable = repliesByFeedback[row.id] ?? [];
+    if (fromTable.length > 0) return fromTable;
+    if (!row.admin_reply?.trim()) return [];
+    return [
+      {
+        id: `legacy-${row.id}`,
+        feedback_id: row.id,
+        author_id: '',
+        content: row.admin_reply,
+        created_at: row.replied_at ?? row.created_at,
+        updated_at: row.replied_at ?? row.created_at,
+      },
+    ];
   };
 
   const copyMigrationSql = async () => {
@@ -280,7 +362,9 @@ function FeedbackPageContent() {
               답변 기능을 쓰려면 DB 마이그레이션이 필요합니다
             </p>
             <p className="text-xs font-bold text-amber-800 leading-relaxed">
-              Supabase 대시보드 → SQL Editor → 아래 SQL 복사 후 Run. 실행 후 이 페이지를 새로고침하세요.
+              Supabase SQL Editor에서{' '}
+              <code className="text-[10px]">supabase/migrations/20260604000000_feedback_replies.sql</code>{' '}
+              을 실행한 뒤 새로고침하세요.
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -445,26 +529,83 @@ function FeedbackPageContent() {
                   >
                     {row.content}
                   </p>
-                  {row.admin_reply && (
-                    <div className="mt-3 p-4 rounded-xl bg-blue-50 border border-blue-100 space-y-1">
-                      <p className="text-[10px] font-black text-blue-600">운영자 답변</p>
-                      <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap leading-relaxed">
-                        {row.admin_reply}
-                      </p>
-                      {row.replied_at && (
+                  {getRepliesForRow(row).map((reply) => {
+                    const isLegacy = reply.id.startsWith('legacy-');
+                    const isEditing = editingReplyId === reply.id;
+                    return (
+                      <div
+                        key={reply.id}
+                        className="mt-3 p-4 rounded-xl bg-blue-50 border border-blue-100 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-black text-blue-600">운영자 답변</p>
+                          {isAdmin && !isLegacy && !isEditing && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingReplyId(reply.id);
+                                setEditDrafts((prev) => ({ ...prev, [reply.id]: reply.content }));
+                              }}
+                              className="text-[10px] font-black text-blue-700 hover:underline"
+                            >
+                              수정
+                            </button>
+                          )}
+                        </div>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={editDrafts[reply.id] ?? reply.content}
+                              onChange={(e) =>
+                                setEditDrafts((prev) => ({ ...prev, [reply.id]: e.target.value }))
+                              }
+                              rows={3}
+                              className="w-full px-3 py-2 rounded-xl border border-blue-200 text-sm font-bold outline-none focus:border-blue-500 resize-y bg-white"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={savingEditId === reply.id}
+                                onClick={() => void handleEditReply(reply)}
+                                className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-black disabled:opacity-50"
+                              >
+                                {savingEditId === reply.id ? '저장 중…' : '저장'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingReplyId(null);
+                                  setEditDrafts((prev) => {
+                                    const next = { ...prev };
+                                    delete next[reply.id];
+                                    return next;
+                                  });
+                                }}
+                                className="px-3 py-1.5 text-xs font-black text-slate-500"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap leading-relaxed">
+                            {reply.content}
+                          </p>
+                        )}
                         <p className="text-[10px] text-slate-400 font-bold">
-                          {new Date(row.replied_at).toLocaleString('ko-KR')}
+                          {new Date(reply.created_at).toLocaleString('ko-KR')}
+                          {reply.updated_at !== reply.created_at && ' · 수정됨'}
                         </p>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })}
 
                   {isAdmin && (
                     <div className="mt-3 pt-3 border-t border-dashed border-slate-200 space-y-2">
                       <p className="text-[10px] font-black text-amber-700">운영자 답변 작성</p>
                       <textarea
-                        placeholder="작성자에게 전달할 답변을 입력하세요."
-                        value={replyDrafts[row.id] ?? row.admin_reply ?? ''}
+                        placeholder="추가 답변을 입력하세요."
+                        value={replyDrafts[row.id] ?? ''}
                         onChange={(e) =>
                           setReplyDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))
                         }
@@ -477,7 +618,7 @@ function FeedbackPageContent() {
                         onClick={() => void handleAdminReply(row)}
                         className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-black hover:bg-slate-800 disabled:opacity-50"
                       >
-                        {replyingId === row.id ? '저장 중…' : row.admin_reply ? '답변 수정' : '답변 등록'}
+                        {replyingId === row.id ? '등록 중…' : '답변 등록'}
                       </button>
                     </div>
                   )}

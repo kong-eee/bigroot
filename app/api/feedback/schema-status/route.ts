@@ -9,6 +9,11 @@ export async function GET() {
     return NextResponse.json({ ready: false, reason: 'service_role_missing' });
   }
 
+  const { error: replyError } = await admin.from('feedback_replies').select('id').limit(1);
+  if (replyError && /feedback_replies|42703/i.test(replyError.message)) {
+    return NextResponse.json({ ready: false, reason: 'replies_migration_required' });
+  }
+
   const { error } = await admin.from('feedback_requests').select('admin_reply').limit(1);
   if (error && /admin_reply|42703/i.test(error.message)) {
     return NextResponse.json({ ready: false, reason: 'migration_required' });

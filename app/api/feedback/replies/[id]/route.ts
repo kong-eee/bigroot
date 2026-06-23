@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase-admin';
-import { isFeedbackSchemaError } from '@/lib/feedback-migration-sql';
 import { isAdminUserId } from '@/lib/is-admin';
 import { createServerSupabase } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function PATCH(request: Request, context: RouteContext) {
   try {
+    const { id } = await context.params;
     const supabase = await createServerSupabase();
     const {
       data: { user },
@@ -24,17 +26,12 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!isAdminUserId(user.id, profile?.is_admin)) {
-      return NextResponse.json({ success: false, error: '운영자만 답변할 수 있습니다.' }, { status: 403 });
+      return NextResponse.json({ success: false, error: '운영자만 수정할 수 있습니다.' }, { status: 403 });
     }
 
-    const body = (await request.json()) as { feedbackId?: string; reply?: string };
-    const feedbackId = body.feedbackId?.trim();
-    const reply = body.reply?.trim() ?? '';
-
-    if (!feedbackId) {
-      return NextResponse.json({ success: false, error: 'feedbackId가 필요합니다.' }, { status: 400 });
-    }
-    if (reply.length < 2) {
+    const body = (await request.json()) as { content?: string };
+    const content = body.content?.trim() ?? '';
+    if (content.length < 2) {
       return NextResponse.json({ success: false, error: '답변을 2자 이상 입력해 주세요.' }, { status: 400 });
     }
 
@@ -43,32 +40,23 @@ export async function POST(request: Request) {
 
     const { data, error } = await writer
       .from('feedback_replies')
-      .insert({
-        feedback_id: feedbackId,
-        author_id: user.id,
-        content: reply,
-      })
+      .update({ content })
+      .eq('id', id)
+      .eq('author_id', user.id)
       .select('id, feedback_id, author_id, content, created_at, updated_at')
-      .single();
+      .maybeSingle();
 
     if (error) {
-      const needsMigration =
-        isFeedbackSchemaError(error.message) || /feedback_replies/i.test(error.message);
-      return NextResponse.json(
-        {
-          success: false,
-          error: needsMigration
-            ? '답변 테이블이 없습니다. Supabase SQL Editor에서 20260604000000_feedback_replies.sql 을 실행해 주세요.'
-            : error.message,
-          needsMigration,
-        },
-        { status: needsMigration ? 503 : 500 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json({ success: false, error: '답변을 찾을 수 없습니다.' }, { status: 404 });
     }
 
     return NextResponse.json({ success: true, reply: data });
   } catch (e) {
-    const message = e instanceof Error ? e.message : '답변 저장 실패';
+    const message = e instanceof Error ? e.message : '답변 수정 실패';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   fetchNotifications,
   markNotificationsRead,
@@ -28,7 +28,7 @@ import {
   toggleInterest,
 } from '@/lib/profile-interests';
 import type { GoldenPropertyType } from '@/lib/golden-time-schedule';
-import { usePathname } from 'next/navigation';
+import { signOutAndGoHome } from '@/lib/auth-logout';
 
 function formatUnreadBadge(count: number): string | null {
   if (count <= 0) return null;
@@ -443,7 +443,7 @@ export default function Navbar() {
                 )}
                 <button
                   type="button"
-                  onClick={() => supabase.auth.signOut()}
+                  onClick={() => void signOutAndGoHome()}
                   className="hidden xl:inline text-sm font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
                 >
                   로그아웃
@@ -511,7 +511,7 @@ export default function Navbar() {
                 )}
                 <button
                   type="button"
-                  onClick={() => supabase.auth.signOut()}
+                  onClick={() => void signOutAndGoHome()}
                   className="text-sm font-bold text-[var(--text-muted)]"
                 >
                   로그아웃
