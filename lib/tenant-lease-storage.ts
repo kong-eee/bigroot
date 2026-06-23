@@ -1,15 +1,31 @@
 const MOVE_IN_KEY = 'bigroot:move_in_date';
+const CONTRACT_SIGNED_KEY = 'bigroot:contract_signed_date';
 const CHECKLIST_PREFIX = 'bigroot:checklist:';
+
+function datedKey(base: string, userId?: string) {
+  return userId ? `${base}:${userId}` : base;
+}
 
 export function getMoveInDate(userId?: string): string {
   if (typeof window === 'undefined') return '';
-  const key = userId ? `${MOVE_IN_KEY}:${userId}` : MOVE_IN_KEY;
-  return localStorage.getItem(key) || '';
+  return localStorage.getItem(datedKey(MOVE_IN_KEY, userId)) || '';
 }
 
 export function setMoveInDate(date: string, userId?: string): void {
   if (typeof window === 'undefined') return;
-  const key = userId ? `${MOVE_IN_KEY}:${userId}` : MOVE_IN_KEY;
+  const key = datedKey(MOVE_IN_KEY, userId);
+  if (date) localStorage.setItem(key, date);
+  else localStorage.removeItem(key);
+}
+
+export function getContractSignedDate(userId?: string): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(datedKey(CONTRACT_SIGNED_KEY, userId)) || '';
+}
+
+export function setContractSignedDate(date: string, userId?: string): void {
+  if (typeof window === 'undefined') return;
+  const key = datedKey(CONTRACT_SIGNED_KEY, userId);
   if (date) localStorage.setItem(key, date);
   else localStorage.removeItem(key);
 }

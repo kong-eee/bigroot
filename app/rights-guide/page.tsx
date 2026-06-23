@@ -108,13 +108,13 @@ export default function RightsGuidePage() {
               {guideData[activeTab].title}님,<br/>더 자세한 상담이 필요하신가요?
             </h3>
             <p className="text-xs text-gray-400 font-bold opacity-80 leading-relaxed">
-              빅루트 AI가 법률 데이터와 실제 판례를 바탕으로<br/>태근 님의 상황을 즉시 진단해 드립니다.
+              계약 전 체크리스트와 권리백과에서<br/>단계별로 확인해 보세요.
             </p>
             <Link
-              href="/legal-ai"
+              href="/contract"
               className="ui-btn-primary inline-block w-full text-base"
             >
-              실시간 AI 상담소 입장 🤖
+              계약전 체크 보기
             </Link>
           </div>
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>

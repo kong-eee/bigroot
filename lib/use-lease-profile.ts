@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getMoveInDate, setMoveInDate } from '@/lib/tenant-lease-storage';
+import {
+  getContractSignedDate,
+  getMoveInDate,
+  setContractSignedDate,
+  setMoveInDate,
+} from '@/lib/tenant-lease-storage';
 import type { PropertyType } from '@/lib/lease-timeline';
 
 export function useLeaseProfile() {
@@ -10,6 +15,7 @@ export function useLeaseProfile() {
   const [loading, setLoading] = useState(true);
   const [propertyType, setPropertyType] = useState<PropertyType>('주택');
   const [contractEndDate, setContractEndDate] = useState('');
+  const [contractSignedDate, setContractSignedDateState] = useState('');
   const [moveInDate, setMoveInDateState] = useState('');
 
   const reload = useCallback(async () => {
@@ -30,8 +36,10 @@ export function useLeaseProfile() {
         setPropertyType(pf.property_type);
       }
       setMoveInDateState(getMoveInDate(authUser.id));
+      setContractSignedDateState(getContractSignedDate(authUser.id));
     } else {
       setMoveInDateState(getMoveInDate());
+      setContractSignedDateState(getContractSignedDate());
     }
     setLoading(false);
   }, []);
@@ -42,16 +50,19 @@ export function useLeaseProfile() {
 
   const saveProfile = async (payload: {
     contractEndDate: string;
+    contractSignedDate: string;
     propertyType: PropertyType;
     moveInDate: string;
   }) => {
     setMoveInDate(payload.moveInDate, user?.id);
+    setContractSignedDate(payload.contractSignedDate, user?.id);
     setMoveInDateState(payload.moveInDate);
+    setContractSignedDateState(payload.contractSignedDate);
     setContractEndDate(payload.contractEndDate);
     setPropertyType(payload.propertyType);
 
     if (!user) {
-      alert('입주일은 저장되었습니다. 만기일·유형은 로그인 후 마이페이지와 동기화됩니다.');
+      alert('계약·입주 일정이 이 기기에 저장되었습니다. 만기일·유형은 로그인 후 마이페이지와 동기화됩니다.');
       return true;
     }
 
@@ -74,9 +85,11 @@ export function useLeaseProfile() {
     loading,
     propertyType,
     contractEndDate,
+    contractSignedDate,
     moveInDate,
     setPropertyType,
     setContractEndDate,
+    setContractSignedDateState,
     setMoveInDateState,
     saveProfile,
     reload,

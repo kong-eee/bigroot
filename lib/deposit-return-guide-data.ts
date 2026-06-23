@@ -104,5 +104,5 @@ export const OFFICIAL_LINKS = [
   { label: '정부24 전입신고', href: 'https://www.gov.kr' },
   { label: '주택임대차분쟁조정', href: 'https://www.khug.or.kr' },
   { label: '법률구조공단 132', href: 'https://www.klac.or.kr' },
-  { label: '빅루트 AI (조문 안내)', href: '/legal-ai' },
+  { label: '권리백과', href: '/rights-guide' },
 ];

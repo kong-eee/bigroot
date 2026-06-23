@@ -94,10 +94,10 @@ export default function DepositReturnClassic() {
             타임라인
           </Link>
           <Link
-            href="/legal-ai"
+            href="/rights-guide"
             className="px-8 py-4 bg-white border-2 border-[var(--border)] font-black rounded-2xl"
           >
-            빅루트 AI
+            권리백과
           </Link>
         </div>
       </div>

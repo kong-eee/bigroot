@@ -20,7 +20,6 @@ const PAGE_LABELS: Record<string, string> = {
   '/move-in-checklist': '입주 체크',
   '/deposit-return': '보증금 반환',
   '/rights-guide': '권리백과',
-  '/legal-ai': '빅루트 AI',
   '/policy-feed': '청년·기금 피드',
   '/golden-time': '골든타임',
   '/community': '커뮤니티',
@@ -79,7 +78,6 @@ const STATIC_ENTRIES: SiteSearchEntry[] = [
   entry('rights-c2', '/rights-guide', '상가 · 권리금', '계약 종료 6개월 전부터 권리금 회수를 방해할 수 없습니다.'),
   entry('rights-o1', '/rights-guide', '사무실 · 갱신', '사업자 등록 가능한 사무실도 상가임대차법으로 10년 갱신권을 보장받습니다.'),
 
-  entry('legal-1', '/legal-ai', '빅루트 AI', '임대차·보증금·갱신·퇴거 관련 법률 질문에 AI가 답변합니다.', ['AI', '법률', '상담']),
   entry('policy-1', '/policy-feed', '청년 정책', '지역별 청년 주거·전세 지원 정책을 지도에서 찾아보세요.'),
   entry('policy-2', '/policy-feed', '대출 금리', '디딤돌·보금자리 등 정책대출 금리를 확인하세요.'),
   entry('policy-3', '/policy-feed', '중요 공지', '주택·임대차 관련 최신 공지와 뉴스를 모아봅니다.'),

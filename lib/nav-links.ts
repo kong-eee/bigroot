@@ -43,7 +43,6 @@ export const NAV_GROUPS: NavGroup[] = [
     label: '정보·도움',
     links: [
       { href: '/rights-guide', label: '권리백과' },
-      { href: '/legal-ai', label: '빅루트 AI' },
       { href: '/policy-feed', label: '청년·기금 피드', highlight: true },
     ],
   },
